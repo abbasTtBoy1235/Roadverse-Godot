@@ -58,9 +58,10 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
 | `tests/test_day_cycle.gd` | day/night model — 20 checks |
+| `tests/test_road_geometry.gd` | procedural road — 61 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**49 checks total.** The same suite runs on every push in GitHub Actions
+**110 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -69,6 +70,7 @@ Raw commands, if you prefer:
 ```bash
 godot --headless --path . --script res://tests/test_gearbox.gd
 godot --headless --path . --script res://tests/test_day_cycle.gd
+godot --headless --path . --script res://tests/test_road_geometry.gd
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
@@ -84,6 +86,27 @@ throttle via `Input.action_press`, and asserts that the truck:
 7. never produces NaN / exploded velocity,
 8. turns right when you steer right,
 9. does not roll over in the turn.
+
+---
+
+## The road and roadside
+
+`RoadBuilder` generates the map from a `Curve3D` — no imported assets:
+
+| Element | How |
+|---|---|
+| Road ribbon | gentle alternating bends (`bend_amplitude`), 640 m, ramped in from the origin so the truck spawns on the asphalt |
+| Surface | asphalt + gravel shoulders + solid edge lines + dashed centre line, all extruded along the curve |
+| Guardrails | continuous beam on both sides plus posts every 5 m |
+| Delineators | orange reflector posts every 24 m |
+| Street lamps | alternating sides, slightly varied colour temperature and energy |
+| Trees | trunk + cone canopy pairs, scattered 7–26 m off the road |
+| Rocks, power poles, signs | scattered along the curve with a deterministic seed |
+| Distant hills | low-poly silhouettes 240–420 m out, no collision |
+
+Repeated props use `MultiMeshInstance3D`, so ~570 instances cost a handful of draw calls.
+Generation takes **15 ms** headless. Change `seed_value` on the `Road` node for a different
+layout; the geometry test asserts that the same seed reproduces the same layout.
 
 ---
 
@@ -162,6 +185,7 @@ All four would have shipped invisibly in a code-only review.
       fog and light intensities are unverified by tests
 - [ ] No engine / wind / tyre audio
 - [ ] No traffic, no cargo, no missions, no save system
+- [ ] Power line wires are not modelled (poles only)
 - [ ] Steering has no wheel visual feedback (wheels don't spin visually yet)
 - [ ] Truck is 4-wheeled; no trailer articulation yet
 

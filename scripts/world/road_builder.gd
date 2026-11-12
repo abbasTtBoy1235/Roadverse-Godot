@@ -71,6 +71,15 @@ var collision_shapes := 0
 var _wetness := 0.0
 var _dry_asphalt_roughness := 0.95
 
+## Radius and position of every solid roadside prop, for collision building.
+var prop_spots: Array[Dictionary] = []
+var prop_shapes := 0
+## Top of every tall city block, for the warning beacons.
+var city_tops: Array[Vector3] = []
+var beacon_count := 0
+
+var _beacon_material: StandardMaterial3D
+
 
 func _ready() -> void:
 	build()
@@ -106,6 +115,7 @@ func build() -> void:
 	_build_overpass()
 	_build_distant_hills()
 	_build_city_glow()
+	_build_prop_collision()
 	_build_collision()
 
 
@@ -513,6 +523,7 @@ func _build_trees() -> void:
 			var base := _place(distance, lateral, 0.0)
 
 			trunk_transforms.append(Transform3D(basis, base + Vector3.UP * 2.3 * scale))
+			prop_spots.append({"position": base, "radius": 0.55 * scale})
 			canopy_transforms.append(Transform3D(basis, base + Vector3.UP * (4.6 * scale + 2.4 * scale)))
 
 		offset += tree_spacing
@@ -537,7 +548,9 @@ func _build_rocks() -> void:
 		var scale := _rng.randf_range(0.45, 1.7)
 
 		var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(scale, scale * 0.75, scale))
-		transforms.append(Transform3D(basis, _place(offset, lateral, scale * 0.28)))
+		var rock_position := _place(offset, lateral, scale * 0.28)
+		transforms.append(Transform3D(basis, rock_position))
+		prop_spots.append({"position": rock_position, "radius": 0.95 * scale})
 
 		offset += rock_spacing
 
@@ -824,6 +837,12 @@ func _build_overpass() -> void:
 		pillar.position = Vector3(side * (span * 0.5 - 1.6), deck_height * 0.5, 0.0)
 		root.add_child(pillar)
 
+		prop_spots.append({
+			"position": centre + basis * pillar.position,
+			"radius": 1.1,
+			"box": Vector3(1.5, deck_height, 1.5),
+		})
+
 
 func _build_city_glow() -> void:
 	# A distant skyline of emissive blocks. WorldEnvironment glow turns these
@@ -852,6 +871,178 @@ func _build_city_glow() -> void:
 		transforms.append(Transform3D(basis, position))
 
 	_add_multimesh("CityBlocks", mesh, _city_glow, transforms)
+	_build_city_windows(transforms, rng, end_point)
+
+
+## Lit windows scattered over the faces of the skyline, plus blinking beacons on
+## the tallest towers. Distance sells them: they read as a million tiny lights.
+func _build_city_windows(blocks: Array[Transform3D], rng: RandomNumberGenerator, look_at_point: Vector3) -> void:
+	var window_mesh := BoxMesh.new()
+	window_mesh.size = Vector3(1.9, 1.3, 0.25)
+
+	var transforms: Array[Transform3D] = []
+
+	for i in 900:
+		if blocks.is_empty():
+			break
+
+		var block := blocks[rng.randi_range(0, blocks.size() - 1)]
+		var size := block.basis.get_scale()
+		var height := size.y
+
+		# Only the upper part of a tower is lit; the rest is dark glass.
+		var low := height * 0.08
+		var high := height * 0.96
+
+		if high <= low:
+			continue
+
+		var to_road := (look_at_point - block.origin)
+		to_road.y = 0.0
+
+		if to_road.length() < 1.0:
+			to_road = Vector3.FORWARD
+		else:
+			to_road = to_road.normalized()
+
+		# Push the window onto the face of the box that looks towards the road.
+		var half := size * 0.5
+		var lateral := rng.randf_range(-0.4, 0.4)
+		var offset := to_road * (half.x * 0.92) + Vector3(-to_road.z, 0.0, to_road.x) * (half.z * lateral)
+
+		var position := block.origin + offset + Vector3.UP * rng.randf_range(low, high)
+		var basis := Basis(Vector3.UP, atan2(to_road.x, to_road.z)).scaled(Vector3(1.0, 1.0, 1.0))
+		transforms.append(Transform3D(basis, position))
+
+	_add_multimesh("CityWindows", window_mesh, _window_material(), transforms)
+
+	# Beacons on the six tallest blocks.
+	var tallest: Array = blocks.duplicate()
+	tallest.sort_custom(func(a: Transform3D, b: Transform3D) -> bool:
+		return a.basis.get_scale().y > b.basis.get_scale().y)
+
+	var beacon_mesh := SphereMesh.new()
+	beacon_mesh.radius = 1.6
+	beacon_mesh.height = 3.2
+	beacon_mesh.radial_segments = 6
+	beacon_mesh.rings = 3
+
+	_beacon_material = StandardMaterial3D.new()
+	_beacon_material.albedo_color = Color(1.0, 0.2, 0.15)
+	_beacon_material.emission_enabled = true
+	_beacon_material.emission = Color(1.0, 0.16, 0.1)
+	_beacon_material.emission_energy_multiplier = 3.0
+	_beacon_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+	var beacon_transforms: Array[Transform3D] = []
+
+	for i in mini(6, tallest.size()):
+		var block: Transform3D = tallest[i]
+		var top: Vector3 = block.origin + Vector3.UP * (block.basis.get_scale().y * 0.5 + 2.0)
+		beacon_transforms.append(Transform3D(Basis(), top))
+		city_tops.append(top)
+
+	_add_multimesh("CityBeacons", beacon_mesh, _beacon_material, beacon_transforms)
+	beacon_count = beacon_transforms.size()
+
+
+func _window_material() -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(1.0, 0.88, 0.62)
+	material.emission_enabled = true
+	material.emission = Color(1.0, 0.86, 0.55)
+	material.emission_energy_multiplier = 2.4
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	return material
+
+
+## 0..1 blink for the tower beacons. Slow pulse, never fully dark.
+static func beacon_energy(time: float) -> float:
+	return 0.35 + 0.65 * (0.5 + 0.5 * sin(time * 2.2))
+
+
+func _process(_delta: float) -> void:
+	if _beacon_material == null:
+		return
+
+	_beacon_material.emission_energy_multiplier = 3.0 * beacon_energy(Time.get_ticks_msec() / 1000.0)
+
+
+## Arc length of the point on the road closest to `point`. Used by the mission
+## system to know how far along the route the truck is.
+func nearest_distance(point: Vector3) -> float:
+	var best := 0.0
+	var best_squared := INF
+	var step := 2.0
+	var distance := 0.0
+
+	while distance <= _baked_length:
+		var squared := _point(distance).distance_squared_to(point)
+
+		if squared < best_squared:
+			best_squared = squared
+			best = distance
+
+		distance += step
+
+	return best
+
+
+## World position on the road, handy for placing markers.
+func point_at(distance: float, lateral: float, height: float) -> Vector3:
+	return _place(clampf(distance, 0.0, _baked_length), lateral, height)
+
+
+## Forward direction of the road at a distance.
+func direction_at(distance: float) -> Vector3:
+	return _tangent(clampf(distance, 0.0, _baked_length))
+
+
+## Solid props: trees, rocks and the overpass pillars.
+func _build_prop_collision() -> void:
+	var body := StaticBody3D.new()
+	body.name = "PropCollision"
+
+	var cylinders: Dictionary = {}
+	var boxes: Dictionary = {}
+
+	for spot in prop_spots:
+		var radius: float = spot["radius"]
+
+		if spot.has("box"):
+			var size: Vector3 = spot["box"]
+			var key := "%.2f/%.2f/%.2f" % [size.x, size.y, size.z]
+			var shape: BoxShape3D = boxes.get(key)
+
+			if shape == null:
+				shape = BoxShape3D.new()
+				shape.size = size
+				boxes[key] = shape
+
+			var collision := CollisionShape3D.new()
+			collision.shape = shape
+			var position: Vector3 = spot["position"]
+			collision.transform = Transform3D(Basis(), position)
+			body.add_child(collision)
+		else:
+			var key := "%.2f" % radius
+			var shape: CylinderShape3D = cylinders.get(key)
+
+			if shape == null:
+				shape = CylinderShape3D.new()
+				shape.radius = radius
+				shape.height = 5.0
+				cylinders[key] = shape
+
+			var collision := CollisionShape3D.new()
+			collision.shape = shape
+			var position: Vector3 = spot["position"]
+			collision.transform = Transform3D(Basis(), position + Vector3.UP * 2.5)
+			body.add_child(collision)
+
+		prop_shapes += 1
+
+	add_child(body)
 
 
 # ------------------------------------------------------------------ helper ----

@@ -4,9 +4,10 @@ A night-driving **truck simulator** for PC, built in **Godot 4.7** (Forward+).
 
 > Status: **playable vertical slice.** Main menu, settings, pause menu, a truck with a real
 > gearbox, a synthesised diesel engine plus tyre and wind noise, spinning and steering wheels, a
-> mouse-driven chase camera, oncoming traffic, collision on the guardrails, and rain that soaks
-> the tarmac into a mirror. The road itself is procedural: guardrails, lamps, trees, power lines,
-> an overpass and a distant skyline. There is no cargo, mission or save system yet.
+> mouse-driven chase camera, a trailer on the hitch, two-way traffic that brakes for the car
+> ahead, collision on the guardrails, trees and overpass pillars, and rain that soaks the tarmac
+> into a mirror. There is one job to do: haul the load to the gate at the far end of the road
+> without wrecking it. No save system yet.
 
 [![verify](https://github.com/abbasTtBoy1235/Roadverse-Godot/actions/workflows/verify.yml/badge.svg)](https://github.com/abbasTtBoy1235/Roadverse-Godot/actions/workflows/verify.yml)
 
@@ -71,12 +72,13 @@ That runs three steps headlessly:
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
 | `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 34 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 5 checks |
-| `tests/test_audio_traffic.gd` | engine synth + traffic maths — 12 checks |
+| `tests/test_audio_traffic.gd` | engine synth, traffic wrap and car-following maths — 17 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
-| `tests/drive_state.tscn` | wheels spin/steer, audio follows revs, traffic moves, rain soaks, the rail stops a ray — 28 checks |
+| `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
+| `tests/drive_state.tscn` | wheels, audio, traffic, trailer, rain, barriers, props and a full delivery — 48 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**260 checks total.** The same suite runs on every push in GitHub Actions
+**302 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -91,6 +93,7 @@ godot --headless --path . res://tests/ui_flow.tscn
 godot --headless --path . res://tests/camera_follow.tscn
 godot --headless --path . --script res://tests/test_audio_traffic.gd
 godot --headless --path . --script res://tests/test_weather_noise.gd
+godot --headless --path . --script res://tests/test_mission.gd
 godot --headless --path . res://tests/drive_state.tscn
 godot --headless --path . res://tests/smoke_test.tscn
 ```
@@ -133,10 +136,46 @@ throttle via `Input.action_press`, and asserts that the truck:
 | City glow | emissive skyline past the end of the road, picked up by the glow pass |
 | Traffic | seven oncoming cars looping the other lane, each with emissive lamps and one light |
 | Barrier | the guardrails are real collision boxes, so the truck bounces off instead of driving through |
+| Skyline | 900 lit windows and six blinking warning beacons on the distant towers |
 
 Repeated props use `MultiMeshInstance3D`, so ~900 instances cost a handful of draw calls.
 Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for a different
 layout; the geometry test asserts that the same seed reproduces the same layout.
+
+---
+
+## The job
+
+- A delivery is a **gate at the far end of the road** (92% of the way along) plus a load on the
+  trailer. The HUD shows the cargo, the percentage covered, the clock and the damage taken.
+- **Damage comes from shocks**, not from touching things: a speed change above 3 m/s in one frame
+  dents the load. Hitting a guardrail at 60 km/h costs you; rolling gently off the shoulder does not.
+- **Arrival needs you to be slow** — under 15 km/h at the gate — so you have to actually stop the
+  rig instead of clipping the post at full tilt.
+- Score = `base × condition × (0.6 + 0.4 × time factor)`, capped at the base. Clean and quick wins.
+- `R` restarts the run; there is no save yet.
+
+## The trailer
+
+`Trailer` is kinematic rather than joint-driven. A physics joint between two `VehicleBody3D` nodes
+at these masses jitters unpredictably, so the rig follows the classic single-track trailer
+equation instead:
+
+```
+trailer_yaw += speed / wheelbase * sin(truck_yaw - trailer_yaw) * delta
+```
+
+That gives correct tracking in a bend, a slow swing back into line after a corner, and a proper
+jackknife if you reverse badly. The three rear axles spin with road speed and the whole thing
+hangs off a hitch in the tractor's local space.
+
+## Traffic
+
+Eleven cars, two lanes. Seven come at you in the oncoming lane; four crawl along in your lane at
+9–14 m/s, which makes them things to overtake. Each one measures the gap to the car ahead in its
+own lane and settles on `follow_speed(cruise, gap, safe_gap)`: cruise when clear, a proportional
+crawl as it closes in, stopped when the gap is gone. Brake lamps light up while decelerating —
+hard braking, gentle acceleration, the way traffic really moves. They still have no collision.
 
 ---
 
@@ -269,8 +308,10 @@ All four would have shipped invisibly in a code-only review.
 - [ ] No visual verification of the night lighting — headless has no renderer, so materials,
       fog and light intensities are unverified by tests
 - [ ] No brake squeal, horn or indicator click sounds yet
-- [ ] Traffic has no collision or AI driving behaviour — it is a fixed loop
-- [ ] No cargo, no missions, no save system
+- [ ] Traffic has no collision and never changes lane, so it follows rather than overtakes
+- [ ] The trailer is kinematic: it cannot jackknife into a real crash, and cargo weight does
+      not affect the tractor
+- [ ] One delivery per session, no save, no multi-stop routes, no fuel or hours-of-service rules
 - [ ] Only the guardrails collide — trees, rocks and the overpass pillars are still ghost geometry
 - [ ] Power line wires are not modelled (poles only)
 - [ ] Truck is 4-wheeled; no trailer articulation yet

@@ -15,6 +15,7 @@ func _initialize() -> void:
 	_test_loudness_curve()
 	_test_distance_wraps()
 	_test_zero_length_is_safe()
+	_test_car_following()
 
 	print("[audio/traffic] %d checks, %d failures" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -58,6 +59,15 @@ func _test_distance_wraps() -> void:
 	_check(is_equal_approx(Traffic.wrap_distance(250.0, 200.0), 50.0), "distance wraps past the end")
 	_check(is_equal_approx(Traffic.wrap_distance(-10.0, 200.0), 190.0), "negative distance wraps to the end")
 	_check(is_equal_approx(Traffic.wrap_distance(75.0, 200.0), 75.0), "distance inside the road is untouched")
+
+
+func _test_car_following() -> void:
+	_check(is_equal_approx(Traffic.follow_speed(20.0, 100.0, 26.0), 20.0), "an empty road means cruise speed")
+	_check(is_equal_approx(Traffic.follow_speed(20.0, 0.0, 26.0), 0.0), "a car on your bumper stops you")
+	_check(Traffic.follow_speed(20.0, 13.0, 26.0) < 20.0, "closing in slows the car down")
+	_check(Traffic.follow_speed(20.0, 13.0, 26.0) > Traffic.follow_speed(20.0, 5.0, 26.0),
+		"the closer the car ahead, the slower you go")
+	_check(is_equal_approx(Traffic.follow_speed(20.0, 100.0, 0.0), 20.0), "a zero safe gap never brakes")
 
 
 func _test_zero_length_is_safe() -> void:

@@ -1,0 +1,192 @@
+class_name Mission
+extends Node
+## One delivery job: drag the load from the start of the road to the gate at the
+## far end without wrecking it. Tracks time and cargo damage, scores the run.
+##
+## The maths lives in static functions so the headless suite can test it without
+## driving anywhere.
+
+signal state_changed(state: int)
+signal delivered(summary: Dictionary)
+
+enum State { DRIVING, DELIVERED }
+
+@export_group("Job")
+@export var cargo_name := "Steel coils"
+@export var goal_fraction := 0.92
+@export var arrival_speed_kph := 15.0
+@export var par_seconds := 95.0
+@export var base_score := 1000.0
+
+@export_group("Damage")
+## Speed change (m/s) in a single frame before the cargo takes a hit.
+@export var impact_threshold := 3.0
+@export var damage_per_impact := 0.02
+
+@export_group("Wiring")
+@export var truck_path: NodePath
+@export var road_path: NodePath
+
+var state := State.DRIVING
+var elapsed := 0.0
+var damage := 0.0
+var goal_distance := 0.0
+var progress := 0.0
+var score := 0.0
+var best_score := 0.0
+var gate_built := false
+
+var _truck: TruckController
+var _road: Node3D
+var _gate: Node3D
+var _last_speed := 0.0
+
+
+## Damage caused by one shock, as a fraction of the cargo's value.
+static func damage_for_impact(delta_speed: float, per_impact: float, threshold: float) -> float:
+	if delta_speed <= threshold:
+		return 0.0
+
+	return clampf((delta_speed - threshold) * per_impact, 0.0, 0.4)
+
+
+## Final score: the load's condition is worth most, then how quickly you got there.
+static func score_for(elapsed_seconds: float, damage_taken: float, par: float, base: float) -> float:
+	var condition := clampf(1.0 - damage_taken, 0.0, 1.0)
+	var time_factor := clampf(par / maxf(elapsed_seconds, 1.0), 0.25, 1.0)
+
+	return roundf(base * condition * (0.6 + 0.4 * time_factor))
+
+
+## Has the truck arrived, i.e. reached the gate slowly enough to stop?
+static func is_arrived(progress_distance: float, goal: float, speed_kph: float, arrival_speed: float) -> bool:
+	return progress_distance >= goal and speed_kph <= arrival_speed
+
+
+## 0..1 progress towards the gate.
+static func progress_fraction(progress_distance: float, goal: float) -> float:
+	if goal <= 0.0:
+		return 1.0
+
+	return clampf(progress_distance / goal, 0.0, 1.0)
+
+
+func _ready() -> void:
+	_truck = get_node_or_null(truck_path) as TruckController
+	_road = get_node_or_null(road_path) as Node3D
+
+	if _road == null or not _road.has_method("nearest_distance"):
+		push_warning("Mission: needs a road with nearest_distance().")
+		return
+
+	var length := float(_road.get("curve").get_baked_length()) if _road.get("curve") != null else 0.0
+	goal_distance = length * clampf(goal_fraction, 0.1, 1.0)
+
+	_build_gate()
+	gate_built = true
+
+	if _truck != null:
+		_last_speed = _truck.speed_kph()
+
+
+func _physics_process(delta: float) -> void:
+	if state != State.DRIVING or _truck == null or _road == null:
+		return
+
+	elapsed += delta
+	progress = float(_road.call("nearest_distance", _truck.global_position))
+
+	var speed := _truck.speed_kph()
+	var shock := absf(speed - _last_speed) / 3.6
+	_last_speed = speed
+
+	if shock > impact_threshold:
+		damage = clampf(damage + damage_for_impact(shock, damage_per_impact, impact_threshold), 0.0, 1.0)
+
+	if is_arrived(progress, goal_distance, speed, arrival_speed_kph):
+		_finish()
+
+
+func _finish() -> void:
+	state = State.DELIVERED
+	score = score_for(elapsed, damage, par_seconds, base_score)
+
+	if score > best_score:
+		best_score = score
+
+	var summary := {
+		"score": score,
+		"seconds": elapsed,
+		"damage": damage,
+		"cargo": cargo_name,
+	}
+
+	state_changed.emit(state)
+	delivered.emit(summary)
+
+
+## Human readable line for the HUD.
+func status_text() -> String:
+	if state == State.DELIVERED:
+		return "%s DELIVERED  ·  score %d  ·  damage %d%%" % [cargo_name.to_upper(), roundi(score), roundi(damage * 100.0)]
+
+	var percent := roundi(progress_fraction(progress, goal_distance) * 100.0)
+	var minutes := int(elapsed) / 60
+	var seconds := int(elapsed) % 60
+
+	return "%s  ·  %d%%  ·  %d:%02d  ·  damage %d%%" % [cargo_name.to_upper(), percent, minutes, seconds, roundi(damage * 100.0)]
+
+
+## The gate itself: two posts, a beam and a lit sign, built from code.
+func _build_gate() -> void:
+	if _road == null:
+		return
+
+	var half_width := 8.5
+	var height := 6.0
+	var left := _road.call("point_at", goal_distance, -half_width, 0.0) as Vector3
+	var right := _road.call("point_at", goal_distance, half_width, 0.0) as Vector3
+	var forward := _road.call("direction_at", goal_distance) as Vector3
+	var basis := Basis.looking_at(forward, Vector3.UP)
+
+	_gate = Node3D.new()
+	_gate.name = "Gate"
+	(_road as Node).add_child(_gate)
+
+	var frame_material := StandardMaterial3D.new()
+	frame_material.albedo_color = Color(0.2, 0.95, 0.55)
+	frame_material.emission_enabled = true
+	frame_material.emission = Color(0.25, 1.0, 0.6)
+	frame_material.emission_energy_multiplier = 3.5
+	frame_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+	for point: Vector3 in [left, right]:
+		var post_mesh := BoxMesh.new()
+		post_mesh.size = Vector3(0.5, height, 0.5)
+
+		var post := MeshInstance3D.new()
+		post.mesh = post_mesh
+		post.material_override = frame_material
+		post.position = point + Vector3.UP * (height * 0.5)
+		_gate.add_child(post)
+
+	var beam_mesh := BoxMesh.new()
+	beam_mesh.size = Vector3(half_width * 2.0, 0.6, 0.6)
+
+	var beam := MeshInstance3D.new()
+	beam.mesh = beam_mesh
+	beam.material_override = frame_material
+	beam.transform = Transform3D(basis, (left + right) * 0.5 + Vector3.UP * height)
+	_gate.add_child(beam)
+
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.35, 1.0, 0.6)
+	light.light_energy = 4.0
+	light.omni_range = 26.0
+	light.position = (left + right) * 0.5 + Vector3.UP * (height - 1.0)
+	_gate.add_child(light)
+
+
+## Test hook: distance the truck still has to cover.
+func remaining() -> float:
+	return maxf(0.0, goal_distance - progress)

@@ -9,11 +9,14 @@ var _time: TimeOfDay
 var _speed_label: Label
 var _gear_label: Label
 var _hint_label: Label
+var _mission_label: Label
+var _mission: Mission
 
 
 func _ready() -> void:
 	_truck = get_node_or_null(truck_path) as TruckController
 	_time = get_node_or_null("../TimeOfDay") as TimeOfDay
+	_mission = get_node_or_null("../Mission") as Mission
 	_build()
 
 
@@ -30,9 +33,12 @@ func _build() -> void:
 	_speed_label = _make_label(column, 40, Color(0.95, 0.97, 1.0))
 	_gear_label = _make_label(column, 20, Color(0.75, 0.85, 1.0))
 
+	_mission_label = _make_label(self, 20, Color(0.55, 1.0, 0.7))
+	_mission_label.position = Vector2(24, 118)
+
 	_hint_label = _make_label(self, 15, Color(0.75, 0.78, 0.85))
-	_hint_label.position = Vector2(24, 170)
-	_hint_label.text = "W/S throttle · A/D steer · Space handbrake · L lights · C camera · F rain · Esc pause"
+	_hint_label.position = Vector2(24, 172)
+	_hint_label.text = "W/S throttle · A/D steer · Space handbrake · L lights · C camera · F rain · R restart · Esc pause"
 
 
 func _make_label(parent: Node, font_size: int, color: Color) -> Label:
@@ -67,6 +73,9 @@ func _process(_delta: float) -> void:
 	var lights := "lights ON" if _headlights_on() else "lights OFF"
 	var clock := DayCycle.clock_string(_time.current_hour()) if _time != null else "--:--"
 	_gear_label.text = "%s   gear %s   %d rpm   %s" % [clock, gear_text, roundi(_truck.engine_rpm), lights]
+
+	if _mission != null:
+		_mission_label.text = _mission.status_text()
 
 
 func _headlights_on() -> bool:

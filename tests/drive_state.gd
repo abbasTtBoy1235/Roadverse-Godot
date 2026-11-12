@@ -5,8 +5,9 @@ extends Node3D
 ##   godot --headless --path . res://tests/drive_state.tscn
 
 const DRIVE_SECONDS := 4.0
-const STEER_SECONDS := 1.5
+const STEER_SECONDS := 1.0
 const RAIN_SECONDS := 2.0
+const DELIVERY_SECONDS := 6.0
 
 var _game: Node3D
 var _truck: TruckController
@@ -16,6 +17,8 @@ var _traffic: Node3D
 var _weather: Node3D
 var _noise: Node
 var _road: Node3D
+var _trailer: Node3D
+var _mission: Mission
 
 var _elapsed := 0.0
 var _phase := 0
@@ -35,6 +38,8 @@ func _ready() -> void:
 	_weather = _game.get_node("Weather") as Node3D
 	_noise = _truck.get_node("RoadNoise") as Node
 	_road = _game.get_node("Road") as Node3D
+	_trailer = _game.get_node("Trailer") as Node3D
+	_mission = _game.get_node("Mission") as Mission
 
 	_check(_truck != null, "truck found")
 	_check(_wheels != null, "wheel visuals found")
@@ -43,14 +48,29 @@ func _ready() -> void:
 	_check(_weather != null, "weather found")
 	_check(_noise != null, "road noise found")
 	_check(_road != null, "road found")
+	_check(_trailer != null, "trailer found")
+	_check(_mission != null, "mission found")
 
 	if _wheels != null:
 		_check(_wheels.wheel_count() == 4, "all four wheels are driven visually (%d)" % _wheels.wheel_count())
 		_spin_before = _wheels.spin_angle(0)
 
 	_traffic_before = _traffic.call("car_distances")
-	_check(_traffic_before.size() == int(_traffic.get("car_count")),
+	var expected_cars: int = int(_traffic.get("car_count")) + int(_traffic.get("forward_car_count"))
+	_check(_traffic_before.size() == expected_cars,
 		"traffic spawned %d cars" % _traffic_before.size())
+
+	var counts: Dictionary = _traffic.call("direction_counts")
+	_check(counts["oncoming"] == int(_traffic.get("car_count")), "the oncoming lane is full (%d)" % counts["oncoming"])
+	_check(counts["forward"] == int(_traffic.get("forward_car_count")), "the slow lane has traffic to overtake (%d)" % counts["forward"])
+
+	if _trailer != null:
+		_check(_trailer.call("hitch_error") < 0.5, "the trailer is on the hitch (%.2f m)" % _trailer.call("hitch_error"))
+		_check(not _trailer.call("jackknifed"), "the rig is not jackknifed (%.0f deg)" % _trailer.call("articulation_degrees"))
+
+	if _mission != null:
+		_check(_mission.gate_built, "the delivery gate was built")
+		_check(_mission.goal_distance > 100.0, "the gate sits down the road (%.0f m)" % _mission.goal_distance)
 
 	Input.action_press("rv_throttle", 1.0)
 
@@ -73,6 +93,12 @@ func _physics_process(delta: float) -> void:
 	elif _phase == 2 and _elapsed >= DRIVE_SECONDS + STEER_SECONDS + RAIN_SECONDS:
 		_phase = 3
 		_check_weather()
+		_check_props()
+		_arm_delivery()
+
+	elif _phase == 3 and _elapsed >= DRIVE_SECONDS + STEER_SECONDS + RAIN_SECONDS + DELIVERY_SECONDS:
+		_phase = 4
+		_check_delivery()
 		Input.action_release("rv_throttle")
 		_finish()
 
@@ -95,6 +121,14 @@ func _check_drive() -> void:
 
 	var speed := _truck.speed_kph()
 	_check(speed > 8.0, "truck is actually moving (%.0f km/h)" % speed)
+
+	if _trailer != null:
+		_check(_trailer.call("hitch_error") < 0.5, "the trailer still hangs on at speed (%.2f m)" % _trailer.call("hitch_error"))
+		_check(_trailer.call("articulation_degrees") < 60.0, "the trailer tracks behind without swinging (%.0f deg)" % _trailer.call("articulation_degrees"))
+
+	if _mission != null:
+		_check(_mission.progress > 5.0, "the mission is counting the distance covered (%.0f m)" % _mission.progress)
+		_check(_mission.status_text().length() > 0, "the HUD has a mission line")
 
 	if _noise != null:
 		_check(_noise.call("tyre_level") > 0.1, "tyre noise follows the speed (%.2f)" % _noise.call("tyre_level"))
@@ -178,6 +212,56 @@ func _check_weather() -> void:
 
 	if asphalt != null:
 		_check(asphalt.metallic > 0.1, "wet tarmac has turned reflective (metallic %.2f)" % asphalt.metallic)
+
+
+## Trees, rocks and the overpass pillars are solid, not decoration.
+func _check_props() -> void:
+	var body := _road.get_node_or_null("PropCollision") as StaticBody3D
+	_check(body != null, "roadside props have collision")
+
+	if body == null or body.get_child_count() == 0:
+		return
+
+	_check(body.get_child_count() > 50, "every tree and rock is walled (%d shapes)" % body.get_child_count())
+
+	var shape := body.get_child(0) as Node3D
+	var origin := shape.global_position + Vector3(0.0, 30.0, 0.0)
+	var query := PhysicsRayQueryParameters3D.create(origin, origin - Vector3(0.0, 32.0, 0.0))
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+
+	_check(not hit.is_empty(), "a ray dropped on a tree hits it")
+	if not hit.is_empty():
+		var collider := hit.get("collider") as Node
+		_check(collider != null and collider.name == "PropCollision", "the prop is solid (hit %s)" % (collider.name if collider != null else "nothing"))
+
+
+## Pulls the gate close and lets any arrival speed count, so the run finishes
+## inside the test instead of after 600 m.
+func _arm_delivery() -> void:
+	if _mission == null:
+		return
+
+	# Put the truck a couple of metres short of the gate instead of driving the
+	# remaining 570 m, then let the mission decide it has arrived.
+	var target: float = _mission.progress + 30.0
+	var spot: Vector3 = _road.call("point_at", target, 0.0, 1.4)
+	_truck.global_transform = Transform3D(_truck.global_transform.basis, spot)
+	_truck.linear_velocity = Vector3.ZERO
+	_truck.angular_velocity = Vector3.ZERO
+
+	_mission.goal_distance = target + 0.5
+	_mission.arrival_speed_kph = 200.0
+	Input.action_press("rv_throttle", 1.0)
+
+
+func _check_delivery() -> void:
+	if _mission == null:
+		return
+
+	_check(_mission.state == Mission.State.DELIVERED, "reaching the gate completes the delivery")
+	_check(_mission.score > 0.0, "the run is scored (%d)" % roundi(_mission.score))
+	_check(_mission.damage >= 0.0 and _mission.damage <= 1.0, "damage stays in range (%.0f%%)" % (_mission.damage * 100.0))
+	_check("DELIVERED" in _mission.status_text(), "the HUD announces the delivery")
 
 
 func _finish() -> void:

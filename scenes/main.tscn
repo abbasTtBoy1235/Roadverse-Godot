@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/core/game.gd" id="1_game"]
 [ext_resource type="PackedScene" path="res://scenes/truck.tscn" id="2_truck"]
@@ -9,6 +9,8 @@
 [ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="7_pause"]
 [ext_resource type="Script" path="res://scripts/world/traffic.gd" id="8_traffic"]
 [ext_resource type="Script" path="res://scripts/world/weather.gd" id="9_weather"]
+[ext_resource type="Script" path="res://scripts/gameplay/mission.gd" id="10_mission"]
+[ext_resource type="Script" path="res://scripts/vehicle/trailer.gd" id="11_trailer"]
 
 [sub_resource type="Environment" id="Env_night"]
 background_mode = 1
@@ -99,3 +101,12 @@ script = ExtResource("7_pause")
 script = ExtResource("9_weather")
 road_path = NodePath("../Road")
 truck_path = NodePath("../Truck")
+
+[node name="Trailer" type="Node3D" parent="."]
+script = ExtResource("11_trailer")
+truck_path = NodePath("../Truck")
+
+[node name="Mission" type="Node" parent="."]
+script = ExtResource("10_mission")
+truck_path = NodePath("../Truck")
+road_path = NodePath("../Road")

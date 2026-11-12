@@ -2,9 +2,10 @@
 
 A night-driving **truck simulator** for PC, built in **Godot 4.7** (Forward+).
 
-> Status: **playable baseline.** You can drive a truck down a lit road with a working
-> engine, automatic gearbox, brakes, steering, headlights, a chase camera and a day/night
-> cycle. There is no traffic, cargo, missions or save system yet.
+> Status: **playable vertical slice.** Main menu, settings, pause menu, a truck with a real
+> gearbox, a mouse-driven chase camera, and a detailed procedural night road with guardrails,
+> lamps, trees, power lines, an overpass and a distant skyline. There is no traffic, cargo,
+> missions or save system yet.
 
 [![verify](https://github.com/abbasTtBoy1235/Roadverse-Godot/actions/workflows/verify.yml/badge.svg)](https://github.com/abbasTtBoy1235/Roadverse-Godot/actions/workflows/verify.yml)
 
@@ -24,6 +25,9 @@ textures or audio — so a fresh clone runs immediately.
 godot --path .              # or open project.godot in the Godot editor and press F5
 ```
 
+The game boots into the main menu. **PLAY** loads the driving scene, **SETTINGS** stores your
+mouse sensitivity, invert-Y and fullscreen choice in `user://settings.cfg`.
+
 ## Controls
 
 | Action | Key |
@@ -35,6 +39,10 @@ godot --path .              # or open project.godot in the Godot editor and pres
 | Shift up / down (manual mode only) | `E` / `Q` |
 | Headlights | `L` |
 | Camera: chase / close / cockpit | `C` |
+| Look around (hold) | Right mouse button |
+| Zoom the camera | Mouse wheel |
+| Recentre the camera | Middle mouse button |
+| Pause menu | `Esc` |
 | Restart | `R` |
 
 The gearbox is **automatic by default**. Uncheck `automatic` on the `Truck` node to drive it
@@ -58,10 +66,12 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
 | `tests/test_day_cycle.gd` | day/night model — 20 checks |
-| `tests/test_road_geometry.gd` | procedural road — 61 checks |
+| `tests/test_road_geometry.gd` | procedural road — 90 checks |
+| `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
+| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 31 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**110 checks total.** The same suite runs on every push in GitHub Actions
+**185 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -71,6 +81,8 @@ Raw commands, if you prefer:
 godot --headless --path . --script res://tests/test_gearbox.gd
 godot --headless --path . --script res://tests/test_day_cycle.gd
 godot --headless --path . --script res://tests/test_road_geometry.gd
+godot --headless --path . --script res://tests/test_camera_orbit.gd
+godot --headless --path . res://tests/ui_flow.tscn
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
@@ -102,11 +114,36 @@ throttle via `Input.action_press`, and asserts that the truck:
 | Street lamps | alternating sides, slightly varied colour temperature and energy |
 | Trees | trunk + cone canopy pairs, scattered 7–26 m off the road |
 | Rocks, power poles, signs | scattered along the curve with a deterministic seed |
+| Cat's eyes | emissive road studs every 8 m along the centre line |
+| Power lines | catenary wires with sag between the crossbars |
+| Fence | post-and-rail fence on the far side |
+| Kilometre markers | reflective plates every 100 m |
+| Shrubs | scattered low bushes between the road and the trees |
+| Overpass | concrete deck with parapets and pillars at 55% of the route |
 | Distant hills | low-poly silhouettes 240–420 m out, no collision |
+| City glow | emissive skyline past the end of the road, picked up by the glow pass |
 
-Repeated props use `MultiMeshInstance3D`, so ~570 instances cost a handful of draw calls.
-Generation takes **15 ms** headless. Change `seed_value` on the `Road` node for a different
+Repeated props use `MultiMeshInstance3D`, so ~900 instances cost a handful of draw calls.
+Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for a different
 layout; the geometry test asserts that the same seed reproduces the same layout.
+
+---
+
+## Camera
+
+`CameraOrbit` is the pure maths (yaw wrap, pitch clamp, zoom clamp, recentring); `ChaseCamera`
+applies it. Hold the **right mouse button** to look around relative to the truck, **wheel** to
+zoom, **middle click** to recentre, `C` to cycle chase / close / cockpit. When you let go the
+camera eases back behind the truck. Sensitivity and invert-Y come from the settings file.
+
+---
+
+## Menus
+
+- **Main menu** (`scenes/menu.tscn`): PLAY / SETTINGS / QUIT, built in code.
+- **Pause menu** (`Esc` inside the game): RESUME / RESTART / MAIN MENU / QUIT. Its process mode
+  is `ALWAYS` so it keeps working while the tree is paused.
+- Settings persist to `user://settings.cfg`.
 
 ---
 
@@ -185,6 +222,7 @@ All four would have shipped invisibly in a code-only review.
       fog and light intensities are unverified by tests
 - [ ] No engine / wind / tyre audio
 - [ ] No traffic, no cargo, no missions, no save system
+- [ ] Roadside props have no collision — you can drive through trees and the overpass pillars
 - [ ] Power line wires are not modelled (poles only)
 - [ ] Steering has no wheel visual feedback (wheels don't spin visually yet)
 - [ ] Truck is 4-wheeled; no trailer articulation yet

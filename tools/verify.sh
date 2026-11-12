@@ -65,6 +65,12 @@ run_step "day/night cycle tests" \
 run_step "road geometry tests" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script res://tests/test_road_geometry.gd
 
+run_step "camera orbit tests" \
+	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script res://tests/test_camera_orbit.gd
+
+run_step "menu and camera wiring" \
+	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/ui_flow.tscn
+
 run_step "physics smoke test" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/smoke_test.tscn
 

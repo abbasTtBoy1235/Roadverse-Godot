@@ -18,8 +18,8 @@ extends Camera3D
 @export var snap_distance := 45.0
 ## The camera may never dip below this height, whatever the orbit asks for.
 @export var min_camera_height := 0.5
-## Clearance kept behind the trailer's back end when one is attached.
-@export var trailer_clearance := 4.0
+## Clearance kept behind the back end of the truck itself.
+@export var rear_clearance := 4.0
 @export var shake_strength := 0.09
 @export var impact_shake_threshold := 4.0
 
@@ -33,7 +33,7 @@ var mode: Mode = Mode.CHASE
 var orbit := CameraOrbit.new()
 
 var _target: Node3D
-var _trailer: Node3D
+var _socket: TruckModel
 var _since_look := 999.0
 
 
@@ -45,13 +45,13 @@ func _ready() -> void:
 	else:
 		# With a real model fitted, the placeholder's seat position is inside the
 		# cargo box. Derive the seat from the fitted mesh instead.
-		var socket := _target.get_node_or_null("TruckModel") as TruckModel
+		_socket = _target.get_node_or_null("TruckModel") as TruckModel
 
-		if socket != null and socket.has_model:
+		if _socket != null and _socket.has_model:
 			cockpit_offset = Vector3(
 				0.0,
-				clampf(socket.model_height * 0.55, 1.4, 2.2),
-				socket.model_front_z + 1.1
+				clampf(_socket.model_height * 0.55, 1.4, 2.2),
+				_socket.model_front_z + 1.1
 			)
 
 	capture_mouse()
@@ -126,13 +126,13 @@ func _process(delta: float) -> void:
 		follow_distance *= 0.55
 		follow_height *= 0.75
 
-	# An attached trailer is part of the rig: the camera has to sit behind its
-	# back end, or it ends up inside the cargo box (near plane inside the mesh,
-	# backfaces culled, trailer looking detached and floating).
+	# The camera has to sit behind the back end of the truck, or it ends up
+	# inside the cargo box (near plane inside the mesh, backfaces culled,
+	# bodywork looking detached and floating).
 	var rear := _rig_rear_z()
 
 	if rear > 0.0:
-		follow_distance = maxf(follow_distance, rear + trailer_clearance)
+		follow_distance = maxf(follow_distance, rear + rear_clearance)
 		follow_height += maxf(0.0, follow_distance - distance) * 0.12
 
 	# The truck's heading gives the base orientation; yaw and pitch ride on top.
@@ -161,23 +161,18 @@ func _process(delta: float) -> void:
 	look_at(_target.global_position + Vector3.UP * look_height, Vector3.UP)
 
 
-## Back end of the whole rig in the target's local space (+Z is backwards), or
-## 0 when no trailer is attached. Looked up lazily: the trailer registers itself
-## in a group, and it may not have run _ready yet when this camera does.
+## Back end of the truck in its own local space (+Z is backwards), from the
+## fitted model when there is one. 0 means "no model, use the plain distance".
 func _rig_rear_z() -> float:
-	if _trailer == null:
-		_trailer = get_tree().get_first_node_in_group("rv_trailer")
-
-	if _trailer == null or not bool(_trailer.get("attached")) or not _trailer.has_method("rear_point"):
+	if _socket == null or not _socket.has_model:
 		return 0.0
 
-	var rear_world: Vector3 = _trailer.call("rear_point")
-	return (_target.global_transform.affine_inverse() * rear_world).z
+	return _socket.model_rear_z
 
 
 func _sensitivity() -> float:
 	if Settings == null:
-		return 0.12
+		return 0.005
 
 	return Settings.mouse_sensitivity
 

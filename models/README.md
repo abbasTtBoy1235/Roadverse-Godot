@@ -33,7 +33,7 @@ Binary uploads are blocked in chat (only images and text), so use one of these:
 raw       : 3.45 x 4.51 x 15.91 m, cab facing +Z, origin 2.29 m under the ground
 fitted to : 2.50 x 3.27 x 11.53 m, cab facing -Z, front axle on WheelFL,
             wheels on the ground, chassis collider resized, lamps on the real nose,
-            trailer hitch moved to z 6.89
+            (it is a complete truck: no separate trailer is attached)
 ```
 
 > **Licence:** this file came from a third-party upload. Before this repo is published
@@ -80,5 +80,6 @@ attribution line to the README.
 
 ## Trailer
 
-Same idea, `models/trailer.glb`, when the tractor is done — the trailer script builds
-its body in code today.
+None — and deliberately so. This model already carries its own cargo body, so the game's old
+procedural trailer made it look like two trailers in a row. The trailer was removed from the game;
+if a future model is a bare tractor unit, that is the point to bring one back.

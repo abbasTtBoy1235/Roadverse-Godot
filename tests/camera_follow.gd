@@ -72,12 +72,11 @@ func _finish() -> void:
 	# the road, and at rest it sat inside the trailer's cargo box.
 	_check(_min_camera_y > 0.4, "the camera never goes under the road (min y %.2f)" % _min_camera_y)
 
-	var trailer := _game.get_node_or_null("Trailer") as Trailer
+	var socket := _truck.get_node_or_null("TruckModel") as TruckModel
 
-	if trailer != null:
+	if socket != null and socket.has_model:
 		var camera_local := (_truck as Node3D).global_transform.affine_inverse() * _camera.global_position
-		var rear_local := (_truck as Node3D).global_transform.affine_inverse() * trailer.rear_point()
-		_check(camera_local.z > rear_local.z, "the camera stays behind the trailer (z %.1f > %.1f)" % [camera_local.z, rear_local.z])
+		_check(camera_local.z > socket.model_rear_z, "the camera clears the back of the truck (z %.1f > %.1f)" % [camera_local.z, socket.model_rear_z])
 
 	if _failures == 0:
 		print("[follow] PASS")

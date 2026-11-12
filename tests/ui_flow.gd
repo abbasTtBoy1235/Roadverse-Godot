@@ -67,14 +67,14 @@ func _check_menu() -> void:
 
 func _check_settings_persistence() -> void:
 	var original := Settings.mouse_sensitivity
-	Settings.set_mouse_sensitivity(0.27)
-	_check(is_equal_approx(Settings.mouse_sensitivity, 0.27), "sensitivity is stored")
+	Settings.set_mouse_sensitivity(0.008)
+	_check(is_equal_approx(Settings.mouse_sensitivity, 0.008), "sensitivity is stored")
 
 	Settings.load_settings()
-	_check(is_equal_approx(Settings.mouse_sensitivity, 0.27), "sensitivity survives a reload")
+	_check(is_equal_approx(Settings.mouse_sensitivity, 0.008), "sensitivity survives a reload")
 
 	Settings.set_mouse_sensitivity(1.5)
-	_check(Settings.mouse_sensitivity <= 0.40, "sensitivity is clamped to the allowed range")
+	_check(Settings.mouse_sensitivity <= 0.012, "sensitivity is clamped to the allowed range")
 
 	Settings.set_mouse_sensitivity(original)
 

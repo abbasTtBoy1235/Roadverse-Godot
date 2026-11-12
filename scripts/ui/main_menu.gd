@@ -125,9 +125,9 @@ func _build_settings_panel() -> void:
 
 	sensitivity_slider = HSlider.new()
 	sensitivity_slider.name = "SensitivitySlider"
-	sensitivity_slider.min_value = 0.02
-	sensitivity_slider.max_value = 0.40
-	sensitivity_slider.step = 0.01
+	sensitivity_slider.min_value = 0.001
+	sensitivity_slider.max_value = 0.012
+	sensitivity_slider.step = 0.0005
 	sensitivity_slider.value = Settings.mouse_sensitivity
 	sensitivity_slider.value_changed.connect(_on_sensitivity_changed)
 	column.add_child(sensitivity_slider)

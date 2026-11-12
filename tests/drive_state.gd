@@ -49,7 +49,7 @@ func _ready() -> void:
 	_weather = _game.get_node("Weather") as Node3D
 	_noise = _truck.get_node("RoadNoise") as Node
 	_road = _game.get_node("Road") as Node3D
-	_trailer = _game.get_node("Trailer") as Node3D
+	_trailer = _game.get_node_or_null("Trailer") as Node3D
 	_mission = _game.get_node("Mission") as Mission
 	_results = _game.get_node("Results") as CanvasLayer
 
@@ -66,7 +66,9 @@ func _ready() -> void:
 	_check(_weather != null, "weather found")
 	_check(_noise != null, "road noise found")
 	_check(_road != null, "road found")
-	_check(_trailer != null, "trailer found")
+	# The GLB is a complete truck with its own cargo body; the game used to hang
+	# a second, procedural trailer behind it. It must not come back.
+	_check(_trailer == null, "no second trailer is attached behind the truck")
 	_check(_mission != null, "mission found")
 	_check(_results != null, "results panel found")
 
@@ -82,10 +84,6 @@ func _ready() -> void:
 	var counts: Dictionary = _traffic.call("direction_counts")
 	_check(counts["oncoming"] == int(_traffic.get("car_count")), "the oncoming lane is full (%d)" % counts["oncoming"])
 	_check(counts["forward"] == int(_traffic.get("forward_car_count")), "the slow lane has traffic to overtake (%d)" % counts["forward"])
-
-	if _trailer != null:
-		_check(_trailer.call("hitch_error") < 0.5, "the trailer is on the hitch (%.2f m)" % _trailer.call("hitch_error"))
-		_check(not _trailer.call("jackknifed"), "the rig is not jackknifed (%.0f deg)" % _trailer.call("articulation_degrees"))
 
 	if _mission != null:
 		_check(_mission.gate_built, "the delivery gate was built")
@@ -140,10 +138,6 @@ func _check_drive() -> void:
 
 	var speed := _truck.speed_kph()
 	_check(speed > 8.0, "truck is actually moving (%.0f km/h)" % speed)
-
-	if _trailer != null:
-		_check(_trailer.call("hitch_error") < 0.5, "the trailer still hangs on at speed (%.2f m)" % _trailer.call("hitch_error"))
-		_check(_trailer.call("articulation_degrees") < 60.0, "the trailer tracks behind without swinging (%.0f deg)" % _trailer.call("articulation_degrees"))
 
 	if _mission != null:
 		_check(_mission.progress > 5.0, "the mission is counting the distance covered (%.0f m)" % _mission.progress)
@@ -366,12 +360,6 @@ func _check_model_socket() -> void:
 	_check(wheel_bottom > -0.12, "the model's wheels are not buried in the road (bottom %.2f)" % wheel_bottom)
 
 	_check(not (_truck.get_node("WheelFL/Spin/Visual") as Node3D).visible, "the primitive wheels are hidden")
-
-	var trailer := _game.get_node_or_null("Trailer") as Trailer
-
-	if trailer != null:
-		_check(trailer.hitch_offset.z > 4.4, "the trailer hangs off the real rear end (z %.2f)" % trailer.hitch_offset.z)
-		_check(absf(trailer.global_position.y) < 0.2, "the trailer sits on the ground, not floating (y %.2f)" % trailer.global_position.y)
 
 
 func _finish() -> void:

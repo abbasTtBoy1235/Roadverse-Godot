@@ -3,7 +3,9 @@ extends Node
 
 const CONFIG_PATH := "user://settings.cfg"
 
-var mouse_sensitivity := 0.12
+## Radians of camera yaw per pixel of mouse travel. 0.005 turns ~29 degrees
+## for a 100 px sweep; the old 0.12 did that in 4 px and felt broken.
+var mouse_sensitivity := 0.005
 var invert_y := false
 var fullscreen := false
 
@@ -18,7 +20,8 @@ func load_settings() -> void:
 	if config.load(CONFIG_PATH) != OK:
 		return
 
-	mouse_sensitivity = clampf(config.get_value("camera", "mouse_sensitivity", mouse_sensitivity), 0.02, 0.40)
+	# Saves written by the old scale (up to 0.40) clamp down to the new ceiling.
+	mouse_sensitivity = clampf(config.get_value("camera", "mouse_sensitivity", mouse_sensitivity), 0.001, 0.012)
 	invert_y = bool(config.get_value("camera", "invert_y", invert_y))
 	fullscreen = bool(config.get_value("video", "fullscreen", fullscreen))
 
@@ -42,7 +45,7 @@ func apply() -> void:
 
 ## Changing a setting from the UI should persist immediately.
 func set_mouse_sensitivity(value: float) -> void:
-	mouse_sensitivity = clampf(value, 0.02, 0.40)
+	mouse_sensitivity = clampf(value, 0.001, 0.012)
 	save_settings()
 
 

@@ -86,7 +86,7 @@ run_step "menu and camera wiring" \
 run_step "camera follow regression" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/camera_follow.tscn
 
-run_step "drive state (wheels, audio, traffic, trailer, mission, rain, barriers)" \
+run_step "drive state (wheels, audio, traffic, mission, rain, barriers)" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/drive_state.tscn
 
 run_step "mission failure regression" \

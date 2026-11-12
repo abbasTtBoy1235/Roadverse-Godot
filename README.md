@@ -4,7 +4,7 @@ A night-driving **truck simulator** for PC, built in **Godot 4.7** (Forward+).
 
 > Status: **playable vertical slice.** Main menu, settings, pause menu, a truck with a real
 > gearbox, a synthesised diesel engine plus tyre and wind noise, spinning and steering wheels, a
-> mouse-driven chase camera, a trailer on the hitch, two-way traffic that brakes for the car
+> mouse-driven chase camera, a real GLB truck, two-way traffic that brakes for the car
 > ahead, collision on the guardrails, trees and overpass pillars, and rain that soaks the tarmac
 > into a mirror. There is one job to do: haul the load to the gate at the far end of the road
 > without wrecking it. No save system yet.
@@ -76,11 +76,11 @@ That runs three steps headlessly:
 | `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
 | `tests/test_career.gd` | routes, pay, ranks, fuel economy and camera shake maths — 35 checks |
-| `tests/drive_state.tscn` | wheels, audio, traffic, trailer, rain, barriers, props, a full delivery, the payout, the fuel burn and the fitted truck model |
+| `tests/drive_state.tscn` | wheels, audio, traffic, rain, barriers, props, a full delivery, the payout, the fuel burn, the fitted truck model and no second trailer |
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**374 checks total.** The same suite runs on every push in GitHub Actions
+**368 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -154,8 +154,9 @@ The truck is a **real GLB now**: `models/truck.glb` (Sketchfab export, 36k trian
 automatically — scaled to 2.5 m wide, turned to face -Z, dropped on its wheels, the four
 `VehicleWheel3D` anchors kept exactly where the handling was tuned for, the model's own eight
 wheels hung on pivots that roll with road speed and steer up front, the chassis collider resized to
-the mesh, the lamps moved to the real nose and tail, and the trailer hitch pushed back to the real
-rear end. Delete the file and the procedural truck comes back, unchanged.
+the mesh, and the lamps moved to the real nose and tail. The GLB is a complete truck with its own
+cargo body, so there is no separate trailer behind it any more. Delete the file and the procedural
+truck comes back, unchanged.
 
 ## Real art (optional)
 
@@ -194,8 +195,8 @@ is used and nothing else changes. Requirements (format, axis, scale, licence) ar
 
 ## The job
 
-- A delivery is a **gate at the far end of the road** (92% of the way along) plus a load on the
-  trailer. The HUD shows the cargo, the percentage covered, the clock and the damage taken.
+- A delivery is a **gate at the far end of the road** (92% of the way along) plus a load in the
+  cargo body. The HUD shows the cargo, the percentage covered, the clock and the damage taken.
 - **Damage comes from shocks**, not from touching things: a speed change above 3 m/s in one frame
   dents the load. Hitting a guardrail at 60 km/h costs you; rolling gently off the shoulder does not.
 - **Arrival needs you to be slow** — under 15 km/h at the gate — so you have to actually stop the
@@ -203,19 +204,13 @@ is used and nothing else changes. Requirements (format, axis, scale, licence) ar
 - Score = `base × condition × (0.6 + 0.4 × time factor)`, capped at the base. Clean and quick wins.
 - `R` restarts the run; there is no save yet.
 
-## The trailer
+## One truck, no trailer
 
-`Trailer` is kinematic rather than joint-driven. A physics joint between two `VehicleBody3D` nodes
-at these masses jitters unpredictably, so the rig follows the classic single-track trailer
-equation instead:
-
-```
-trailer_yaw += speed / wheelbase * sin(truck_yaw - trailer_yaw) * delta
-```
-
-That gives correct tracking in a bend, a slow swing back into line after a corner, and a proper
-jackknife if you reverse badly. The three rear axles spin with road speed and the whole thing
-hangs off a hitch in the tractor's local space.
+There is no towed trailer any more. The GLB is a complete truck — cab, cargo body, four axles — so
+when the game also hung its old procedural trailer behind it, the rig looked like a road train with
+two trailers. The trailer node and its kinematic articulation model were removed; the mission,
+cargo and scoring never depended on it. The chase camera now measures its distance from the back
+of the truck itself.
 
 ## Traffic
 
@@ -357,8 +352,7 @@ All four would have shipped invisibly in a code-only review.
       fog and light intensities are unverified by tests
 - [ ] No brake squeal, horn or indicator click sounds yet
 - [ ] Traffic has no collision and never changes lane, so it follows rather than overtakes
-- [ ] The trailer is kinematic: it cannot jackknife into a real crash, and cargo weight does
-      not affect the tractor
+- [ ] Cargo weight does      not affect the tractor
 - [ ] No fuel, engine wear, hours-of-service or trailer damage
 - [ ] No multi-stop routes, no cargo market, no garage or truck upgrades
 - [ ] Only the guardrails collide — trees, rocks and the overpass pillars are still ghost geometry

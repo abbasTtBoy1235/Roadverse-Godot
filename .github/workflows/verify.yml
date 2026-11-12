@@ -30,4 +30,4 @@ jobs:
           "$RUNNER_TEMP/godot" --headless --version
 
       - name: Verify
-        run: ./tools/verify.sh
+        run: bash ./tools/verify.sh

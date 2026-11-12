@@ -6,10 +6,13 @@ extends SceneTree
 
 const ROAD_SCRIPT := preload("res://scripts/world/road_builder.gd")
 
-const EXPECTED_MESHES := ["Asphalt", "Shoulders", "EdgeLines", "CentreLine", "GuardrailBeams"]
+const EXPECTED_MESHES := [
+	"Asphalt", "Shoulders", "EdgeLines", "CentreLine", "GuardrailBeams", "PowerWires", "FenceRails",
+]
 const EXPECTED_MULTIMESHES := [
 	"GuardrailPosts", "DelineatorPosts", "LampPoles", "LampArms", "LampBulbs",
 	"TreeTrunks", "TreeCanopies", "Rocks", "PowerPoles", "DistantHills",
+	"RoadStuds", "KmMarkerPosts", "KmMarkerPlates", "FencePosts", "Shrubs", "CityBlocks",
 ]
 
 var _checks := 0
@@ -31,6 +34,7 @@ func _initialize() -> void:
 	_check_meshes(road)
 	_check_multimeshes(road)
 	_check_lamps(road)
+	_check_overpass(road)
 	_check_determinism()
 
 	var lights := _count_lamps(road)
@@ -117,7 +121,18 @@ func _check_multimeshes(road: Node3D) -> void:
 		var sample := instance.multimesh.get_instance_transform(count - 1)
 		_check(is_finite(sample.origin.length()), "multimesh '%s' transforms are finite" % node_name)
 
-	_check(total_instances > 200, "roadside furniture is dense enough (%d instances)" % total_instances)
+	_check(total_instances > 800, "roadside furniture is dense enough (%d instances)" % total_instances)
+
+
+func _check_overpass(road: Node3D) -> void:
+	var overpass := road.get_node_or_null("Overpass")
+	_check(overpass != null, "overpass exists")
+
+	if overpass == null:
+		return
+
+	_check(overpass.get_node_or_null("Deck") != null, "overpass has a deck")
+	_check(overpass.get_child_count() >= 4, "overpass has deck, parapets and pillars (%d parts)" % overpass.get_child_count())
 
 
 func _check_lamps(road: Node3D) -> void:

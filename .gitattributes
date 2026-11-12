@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+*.gd    text diff=gdscript
+*.tscn  text
+*.tres  text
+*.godot text
+*.svg   text
+*.png   binary
+*.jpg   binary
+*.ogg   binary
+*.wav   binary

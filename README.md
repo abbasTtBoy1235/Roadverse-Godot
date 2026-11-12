@@ -76,11 +76,11 @@ That runs three steps headlessly:
 | `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
 | `tests/test_career.gd` | routes, pay, ranks, fuel economy and camera shake maths — 35 checks |
-| `tests/drive_state.tscn` | wheels, audio, traffic, trailer, rain, barriers, props, a full delivery, the payout and the fuel burn — 57 checks |
+| `tests/drive_state.tscn` | wheels, audio, traffic, trailer, rain, barriers, props, a full delivery, the payout, the fuel burn and the model socket — 64 checks |
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**357 checks total.** The same suite runs on every push in GitHub Actions
+**364 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -147,6 +147,15 @@ Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for 
 layout; the geometry test asserts that the same seed reproduces the same layout.
 
 ---
+
+## Real art (optional)
+
+Everything in this repo is generated in code, but the truck has a **socket** for a real mesh:
+drop `models/truck.glb` in and `TruckModel` swaps it in on the next run — placeholder boxes hidden,
+physics untouched, and any child nodes named `wheel_fl`/`wheel_fr`/`wheel_rl`/`wheel_rr` are
+re-parented onto the spin pivots so they steer and roll. With no file present the procedural truck
+is used and nothing else changes. Requirements (format, axis, scale, licence) are in
+[`models/README.md`](models/README.md).
 
 ## Fuel and the cost of driving
 

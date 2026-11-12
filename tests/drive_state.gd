@@ -304,6 +304,43 @@ func _check_delivery() -> void:
 		_check(_results.call("is_showing"), "the results screen is on")
 		_check("Score" in String(_results.call("summary_text")), "the results screen shows the score")
 
+	_check_model_socket()
+
+
+## The truck can take a real GLB without touching physics: feed it a fake model
+## with named wheels and check the swap happened exactly once.
+func _check_model_socket() -> void:
+	var socket := _truck.get_node_or_null("TruckModel") as TruckModel
+	_check(socket != null, "the truck has a model socket")
+
+	if socket == null:
+		return
+
+	_check(not socket.has_model, "with no file on disk the procedural truck is used")
+
+	var fake := Node3D.new()
+	fake.name = "FakeTruckModel"
+
+	for wheel_name in ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"]:
+		var wheel := Node3D.new()
+		wheel.name = wheel_name
+		fake.add_child(wheel)
+
+	_check(socket.apply_model(fake), "a model can be dropped in at runtime")
+	_check(socket.has_model, "the socket reports the model is in use")
+	_check(socket.adopted_wheel_count() == 4, "all four model wheels were adopted (%d)" % socket.adopted_wheel_count())
+
+	for placeholder in ["Body", "Cab"]:
+		var node := _truck.get_node_or_null(placeholder) as Node3D
+
+		if node != null:
+			_check(not node.visible, "the %s placeholder is hidden" % placeholder.to_lower())
+
+	var spin := _truck.get_node_or_null("WheelFL/Spin") as Node3D
+
+	if spin != null:
+		_check(spin.get_node_or_null("wheel_fl") != null, "the model's front-left wheel sits on the spin pivot")
+
 
 func _finish() -> void:
 	if _failures == 0:

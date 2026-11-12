@@ -17,6 +17,7 @@ const ACTIONS := {
 	"rv_toggle_camera": [KEY_C],
 	"rv_restart": [KEY_R],
 	"rv_pause": [KEY_ESCAPE],
+	"rv_weather": [KEY_F],
 }
 
 ## Mouse-bound actions: action name -> button index.

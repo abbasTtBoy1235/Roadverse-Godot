@@ -1,9 +1,10 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/vehicle/truck_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://scripts/vehicle/truck_lights.gd" id="2_lights"]
 [ext_resource type="Script" path="res://scripts/vehicle/wheel_visuals.gd" id="3_wheels"]
 [ext_resource type="Script" path="res://scripts/audio/engine_audio.gd" id="4_audio"]
+[ext_resource type="Script" path="res://scripts/audio/road_noise.gd" id="5_noise"]
 
 [sub_resource type="BoxShape3D" id="Shape_body"]
 size = Vector3(2.4, 2.6, 8.0)
@@ -173,4 +174,8 @@ script = ExtResource("3_wheels")
 [node name="EngineAudio" type="AudioStreamPlayer" parent="."]
 volume_db = -6.0
 script = ExtResource("4_audio")
+truck_path = NodePath("..")
+
+[node name="RoadNoise" type="Node" parent="."]
+script = ExtResource("5_noise")
 truck_path = NodePath("..")

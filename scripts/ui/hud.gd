@@ -32,7 +32,7 @@ func _build() -> void:
 
 	_hint_label = _make_label(self, 15, Color(0.75, 0.78, 0.85))
 	_hint_label.position = Vector2(24, 170)
-	_hint_label.text = "W/S throttle · A/D steer · Space handbrake · L lights · C camera · RMB look · Esc pause"
+	_hint_label.text = "W/S throttle · A/D steer · Space handbrake · L lights · C camera · F rain · Esc pause"
 
 
 func _make_label(parent: Node, font_size: int, color: Color) -> Label:

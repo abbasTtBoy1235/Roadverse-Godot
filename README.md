@@ -3,9 +3,10 @@
 A night-driving **truck simulator** for PC, built in **Godot 4.7** (Forward+).
 
 > Status: **playable vertical slice.** Main menu, settings, pause menu, a truck with a real
-> gearbox and a synthesised diesel engine, spinning and steering wheels, a mouse-driven chase
-> camera, oncoming traffic, and a detailed procedural night road with guardrails, lamps, trees,
-> power lines, an overpass and a distant skyline. There is no cargo, mission or save system yet.
+> gearbox, a synthesised diesel engine plus tyre and wind noise, spinning and steering wheels, a
+> mouse-driven chase camera, oncoming traffic, collision on the guardrails, and rain that soaks
+> the tarmac into a mirror. The road itself is procedural: guardrails, lamps, trees, power lines,
+> an overpass and a distant skyline. There is no cargo, mission or save system yet.
 
 [![verify](https://github.com/abbasTtBoy1235/Roadverse-Godot/actions/workflows/verify.yml/badge.svg)](https://github.com/abbasTtBoy1235/Roadverse-Godot/actions/workflows/verify.yml)
 
@@ -71,10 +72,11 @@ That runs three steps headlessly:
 | `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 34 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 5 checks |
 | `tests/test_audio_traffic.gd` | engine synth + traffic maths — 12 checks |
-| `tests/drive_state.tscn` | wheels spin/steer, audio follows revs, traffic moves — 14 checks |
+| `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
+| `tests/drive_state.tscn` | wheels spin/steer, audio follows revs, traffic moves, rain soaks, the rail stops a ray — 28 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**219 checks total.** The same suite runs on every push in GitHub Actions
+**260 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -88,6 +90,7 @@ godot --headless --path . --script res://tests/test_camera_orbit.gd
 godot --headless --path . res://tests/ui_flow.tscn
 godot --headless --path . res://tests/camera_follow.tscn
 godot --headless --path . --script res://tests/test_audio_traffic.gd
+godot --headless --path . --script res://tests/test_weather_noise.gd
 godot --headless --path . res://tests/drive_state.tscn
 godot --headless --path . res://tests/smoke_test.tscn
 ```
@@ -129,10 +132,24 @@ throttle via `Input.action_press`, and asserts that the truck:
 | Distant hills | low-poly silhouettes 240–420 m out, no collision |
 | City glow | emissive skyline past the end of the road, picked up by the glow pass |
 | Traffic | seven oncoming cars looping the other lane, each with emissive lamps and one light |
+| Barrier | the guardrails are real collision boxes, so the truck bounces off instead of driving through |
 
 Repeated props use `MultiMeshInstance3D`, so ~900 instances cost a handful of draw calls.
 Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for a different
 layout; the geometry test asserts that the same seed reproduces the same layout.
+
+---
+
+## Rain and barriers
+
+- **`F` toggles rain.** `Weather` spawns CPU particles in a box around the truck and drags them
+  with it, so the rain is always where you are. The wetness value eases in over about a second:
+  while it rises, `RoadBuilder.set_wetness()` lowers the asphalt roughness (0.95 → 0.16) and
+  raises metallic (0 → 0.6), which is what turns the tarmac into a mirror under the lamps.
+  Fog density follows at the same time.
+- **The guardrails are physics.** ~512 boxes follow the curve at the rail's lateral offset,
+  parented to one `StaticBody3D`. They are 1.25 m tall, so the truck leans on them instead of
+  driving off the edge into the void.
 
 ---
 
@@ -141,6 +158,9 @@ layout; the geometry test asserts that the same seed reproduces the same layout.
 - **Engine audio is synthesised, not sampled.** `EngineAudio` fills an `AudioStreamGenerator`
   with a four-stroke firing frequency (`rpm / 120 * cylinders`) plus three harmonics, and scales
   the gain with revs and pedal load. No audio files, same as everything else in this repo.
+- **Tyre and wind noise are synthesised too.** `RoadNoise` pushes filtered white noise through
+  two generators: a low-passed rumble for the tyres (`~speed^0.55`) and a bright hiss for the
+  wind (`~speed^2`), both smoothed so they swell rather than snap.
 - **Wheels are driven visually.** Physics wheels do not move their children, so `WheelVisuals`
   spins each mesh by `get_rpm()` and yaws the steered wheels. The pivot uses Godot's YXZ Euler
   order so steering wraps around the spin, not the other way round.
@@ -248,10 +268,10 @@ All four would have shipped invisibly in a code-only review.
 
 - [ ] No visual verification of the night lighting — headless has no renderer, so materials,
       fog and light intensities are unverified by tests
-- [ ] Only one sound layer (engine). No tyre, wind, brake or horn audio
+- [ ] No brake squeal, horn or indicator click sounds yet
 - [ ] Traffic has no collision or AI driving behaviour — it is a fixed loop
-- [ ] No traffic, no cargo, no missions, no save system
-- [ ] Roadside props have no collision — you can drive through trees and the overpass pillars
+- [ ] No cargo, no missions, no save system
+- [ ] Only the guardrails collide — trees, rocks and the overpass pillars are still ghost geometry
 - [ ] Power line wires are not modelled (poles only)
 - [ ] Truck is 4-wheeled; no trailer articulation yet
 

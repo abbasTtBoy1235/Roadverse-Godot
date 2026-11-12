@@ -71,13 +71,16 @@ run_step "camera orbit tests" \
 run_step "audio and traffic tests" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script res://tests/test_audio_traffic.gd
 
+run_step "weather and road-noise tests" \
+	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script res://tests/test_weather_noise.gd
+
 run_step "menu and camera wiring" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/ui_flow.tscn
 
 run_step "camera follow regression" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/camera_follow.tscn
 
-run_step "drive state (wheels, audio, traffic)" \
+run_step "drive state (wheels, audio, traffic, rain, barrier)" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/drive_state.tscn
 
 run_step "physics smoke test" \

@@ -64,6 +64,13 @@ var _wire_material: StandardMaterial3D
 var _concrete: StandardMaterial3D
 var _city_glow: StandardMaterial3D
 
+## Lateral offset of the guardrail from the centre line, set while building.
+var rail_lateral := 0.0
+## How many collision boxes the guardrails produced.
+var collision_shapes := 0
+var _wetness := 0.0
+var _dry_asphalt_roughness := 0.95
+
 
 func _ready() -> void:
 	build()
@@ -99,6 +106,7 @@ func build() -> void:
 	_build_overpass()
 	_build_distant_hills()
 	_build_city_glow()
+	_build_collision()
 
 
 # ------------------------------------------------------------------ curve ----
@@ -153,6 +161,7 @@ func _basis(distance: float) -> Basis:
 func _create_materials() -> void:
 	_asphalt = _mat(Color(0.075, 0.075, 0.085), 0.95)
 	_asphalt.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_dry_asphalt_roughness = _asphalt.roughness
 
 	_shoulder = _mat(Color(0.13, 0.12, 0.11), 1.0)
 	_shoulder.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -348,6 +357,53 @@ func _build_guardrails() -> void:
 		offset += rail_post_spacing
 
 	_add_multimesh("GuardrailPosts", post_mesh, post_material, transforms)
+
+
+## 0 = dry tarmac, 1 = soaked. Rain drives this.
+func set_wetness(amount: float) -> void:
+	_wetness = clampf(amount, 0.0, 1.0)
+
+	if _asphalt == null:
+		return
+
+	_asphalt.roughness = lerpf(_dry_asphalt_roughness, 0.16, _wetness)
+	_asphalt.metallic = lerpf(0.0, 0.6, _wetness)
+	_asphalt.metallic_specular = lerpf(0.5, 0.9, _wetness)
+
+	if _shoulder != null:
+		_shoulder.roughness = lerpf(1.0, 0.35, _wetness)
+
+
+func wetness() -> float:
+	return _wetness
+
+
+## The guardrails are just geometry, so give them boxes to stop the truck.
+func _build_collision() -> void:
+	var body := StaticBody3D.new()
+	body.name = "GuardrailCollision"
+
+	var lateral := road_width * 0.5 + shoulder_width + 0.35
+	rail_lateral = lateral
+
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(0.32, 1.25, mesh_step + 0.15)
+
+	var distance := 0.0
+	while distance < _baked_length:
+		var next := minf(distance + mesh_step, _baked_length)
+		var mid := clampf((distance + next) * 0.5, 0.0, _baked_length)
+
+		for side: float in [-1.0, 1.0]:
+			var collision := CollisionShape3D.new()
+			collision.shape = shape
+			collision.transform = Transform3D(_basis(mid), _place(mid, side * lateral, 0.66))
+			body.add_child(collision)
+			collision_shapes += 1
+
+		distance = next
+
+	add_child(body)
 
 
 func _build_delineators() -> void:

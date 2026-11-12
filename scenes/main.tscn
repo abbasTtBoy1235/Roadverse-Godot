@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/core/game.gd" id="1_game"]
 [ext_resource type="PackedScene" path="res://scenes/truck.tscn" id="2_truck"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/world/time_of_day.gd" id="6_time"]
 [ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="7_pause"]
 [ext_resource type="Script" path="res://scripts/world/traffic.gd" id="8_traffic"]
+[ext_resource type="Script" path="res://scripts/world/weather.gd" id="9_weather"]
 
 [sub_resource type="Environment" id="Env_night"]
 background_mode = 1
@@ -93,3 +94,8 @@ truck_path = NodePath("../Truck")
 
 [node name="PauseMenu" type="CanvasLayer" parent="."]
 script = ExtResource("7_pause")
+
+[node name="Weather" type="Node3D" parent="."]
+script = ExtResource("9_weather")
+road_path = NodePath("../Road")
+truck_path = NodePath("../Truck")

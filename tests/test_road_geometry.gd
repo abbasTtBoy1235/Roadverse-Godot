@@ -35,6 +35,8 @@ func _initialize() -> void:
 	_check_multimeshes(road)
 	_check_lamps(road)
 	_check_overpass(road)
+	_check_collision(road)
+	_check_wetness(road)
 	_check_determinism()
 
 	var lights := _count_lamps(road)
@@ -147,6 +149,62 @@ func _count_lamps(road: Node3D) -> int:
 		if child is OmniLight3D:
 			count += 1
 	return count
+
+
+func _check_collision(road: Node3D) -> void:
+	var body := road.get_node_or_null("GuardrailCollision") as StaticBody3D
+	_check(body != null, "the guardrails have a collision body")
+
+	if body == null:
+		return
+
+	_check(body.get_child_count() > 300, "the rail is covered in boxes (%d)" % body.get_child_count())
+	_check(road.collision_shapes == body.get_child_count(), "collision_shapes counts every box")
+
+	var left := 0
+	var right := 0
+	var lowest := INF
+	var highest := -INF
+
+	for child in body.get_children():
+		var collision := child as CollisionShape3D
+
+		if collision == null or collision.shape == null:
+			continue
+
+		var lateral: float = collision.transform.origin.x
+		if lateral > 0.5:
+			right += 1
+		elif lateral < -0.5:
+			left += 1
+
+		lowest = minf(lowest, collision.transform.origin.y)
+		highest = maxf(highest, collision.transform.origin.y)
+
+	_check(left > 100 and right > 100, "both sides are walled (%d left, %d right)" % [left, right])
+	_check(absf(absf(road.rail_lateral) - 9.45) < 0.01, "the rail sits at the edge of the shoulder (%.2f m)" % road.rail_lateral)
+	_check(lowest > 0.2, "the barrier starts above the road surface (%.2f m)" % lowest)
+	_check(highest < 1.6, "the barrier is truck-high, not a wall (%.2f m)" % highest)
+
+
+func _check_wetness(road: Node3D) -> void:
+	var asphalt := (road.get_node("Asphalt") as MeshInstance3D).material_override as StandardMaterial3D
+	_check(asphalt != null, "asphalt material found")
+
+	if asphalt == null:
+		return
+
+	var dry := asphalt.roughness
+	road.set_wetness(1.0)
+	var wet := asphalt.roughness
+	var wet_metal := asphalt.metallic
+
+	_check(wet < dry, "wet tarmac is smoother than dry (%.2f -> %.2f)" % [dry, wet])
+	_check(wet_metal > 0.4, "wet tarmac reflects like a mirror (metallic %.2f)" % wet_metal)
+	_check(is_equal_approx(road.wetness(), 1.0), "wetness is reported back")
+
+	road.set_wetness(0.0)
+	_check(is_equal_approx(asphalt.roughness, dry), "drying restores the original roughness")
 
 
 func _check_determinism() -> void:

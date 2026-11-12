@@ -5,6 +5,7 @@ extends CanvasLayer
 @export var truck_path: NodePath
 
 var _truck: TruckController
+var _time: TimeOfDay
 var _speed_label: Label
 var _gear_label: Label
 var _hint_label: Label
@@ -12,6 +13,7 @@ var _hint_label: Label
 
 func _ready() -> void:
 	_truck = get_node_or_null(truck_path) as TruckController
+	_time = get_node_or_null("../TimeOfDay") as TimeOfDay
 	_build()
 
 
@@ -63,7 +65,8 @@ func _process(_delta: float) -> void:
 
 	var gear_text := "R" if _truck.gearbox.is_reverse else str(_truck.gearbox.current_gear)
 	var lights := "lights ON" if _headlights_on() else "lights OFF"
-	_gear_label.text = "gear %s   %d rpm   %s" % [gear_text, roundi(_truck.engine_rpm), lights]
+	var clock := DayCycle.clock_string(_time.current_hour()) if _time != null else "--:--"
+	_gear_label.text = "%s   gear %s   %d rpm   %s" % [clock, gear_text, roundi(_truck.engine_rpm), lights]
 
 
 func _headlights_on() -> bool:

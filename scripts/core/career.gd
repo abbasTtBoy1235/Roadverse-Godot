@@ -39,7 +39,7 @@ func record_delivery(summary: Dictionary) -> void:
 	var run := summary.duplicate()
 	run["delivered"] = true
 
-	var paid := CareerMath.payout(run)
+	var paid := CareerMath.payout(run) + int(summary.get("fuel_bonus", 0))
 
 	cash += paid
 	jobs_done += 1

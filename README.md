@@ -75,12 +75,12 @@ That runs three steps headlessly:
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap and car-following maths — 17 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
-| `tests/test_career.gd` | routes, pay, ranks and promotion maths — 25 checks |
-| `tests/drive_state.tscn` | wheels, audio, traffic, trailer, rain, barriers, props, a full delivery and the payout — 53 checks |
+| `tests/test_career.gd` | routes, pay, ranks, fuel economy and camera shake maths — 35 checks |
+| `tests/drive_state.tscn` | wheels, audio, traffic, trailer, rain, barriers, props, a full delivery, the payout and the fuel burn — 57 checks |
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**343 checks total.** The same suite runs on every push in GitHub Actions
+**357 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -147,6 +147,18 @@ Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for 
 layout; the geometry test asserts that the same seed reproduces the same layout.
 
 ---
+
+## Fuel and the cost of driving
+
+- The tank holds 60 L and burns `0.020 + 0.10 × pedal × (0.4 + 0.6 × revs)` litres per second, so
+  a full-throttle haul drinks roughly twice what a steady one does. A job never strands you —
+  the gauge is there to make the pedal a decision.
+- **Fuel is money.** Each route has a par (`6 L per 620 m`); burning under it pays an economy
+  bonus of up to $200 on top of the delivery fee, and burning over it pays nothing extra.
+- **Run dry and the engine stops making power** — the throttle is ignored, the synth drops to
+  idle, and you coast. Refuelled at the start of every job, as if the yard fuelled you.
+- A guardrail strike now **shakes the camera**: the follow camera measures the drop in speed each
+  physics frame and kicks, then decays.
 
 ## The career
 

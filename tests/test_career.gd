@@ -14,6 +14,7 @@ func _initialize() -> void:
 	_test_cargo_rotation()
 	_test_pay()
 	_test_ranks()
+	_test_economy()
 
 	print("[career] %d checks, %d failures" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -60,6 +61,27 @@ func _test_pay() -> void:
 
 	_check(CareerMath.payout({"score": 800.0, "delivered": true}) > 0, "a delivered load pays")
 	_check(CareerMath.payout({"score": 800.0, "delivered": false}) == 0, "a wrecked load pays nothing")
+
+
+func _test_economy() -> void:
+	var par := CareerMath.par_fuel(620.0)
+	_check(par > 1.0, "a 620 m route has a fuel par (%.1f L)" % par)
+	_check(CareerMath.par_fuel(1240.0) > par, "longer routes get a bigger allowance")
+
+	_check(CareerMath.economy_bonus(par * 0.5, par) > 0, "a frugal run earns a bonus")
+	_check(CareerMath.economy_bonus(par * 0.5, par) > CareerMath.economy_bonus(par, par),
+		"the bonus shrinks as the tank empties faster")
+	_check(CareerMath.economy_bonus(par * 0.5, par) <= 200, "the economy bonus is capped at $200")
+	_check(CareerMath.economy_bonus(par * 2.0, par) == 0, "a thirsty run earns nothing extra")
+	_check(CareerMath.economy_bonus(10.0, 0.0) == 0, "no par means no bonus")
+
+	_check(FuelTank.burn_rate(0.0, 0.0) > 0.0, "an idling engine still burns diesel")
+	_check(FuelTank.burn_rate(1.0, 1.0) > FuelTank.burn_rate(0.5, 0.5), "full throttle burns more")
+	_check(FuelTank.burn_rate(5.0, 5.0) == FuelTank.burn_rate(1.0, 1.0), "the burn rate is clamped")
+
+	_check(ChaseCamera.shake_for(1.0) == 0.0, "gentle speed changes do not shake the camera")
+	_check(ChaseCamera.shake_for(12.0) > 0.0, "a crash shakes the camera")
+	_check(ChaseCamera.shake_for(1000.0) <= 1.0, "shake is clamped")
 
 
 func _test_ranks() -> void:

@@ -63,6 +63,21 @@ static func next_rank(total_cash: int) -> Dictionary:
 	return {"name": "", "remaining": 0}
 
 
+## What a clean, frugal run of this length should burn, in litres.
+static func par_fuel(route_metres: float) -> float:
+	return maxf(1.0, route_metres / 620.0 * 6.0)
+
+
+## Bonus for sipping rather than gulping: up to $200 for a perfect run, nothing
+## for a thirsty one.
+static func economy_bonus(litres_used: float, par_litres: float) -> int:
+	if par_litres <= 0.0:
+		return 0
+
+	var saved := (par_litres - litres_used) / par_litres
+	return maxi(0, int(roundf(clampf(saved, 0.0, 1.0) * 200.0)))
+
+
 ## A run is only paid out if the cargo survived and the gate was reached.
 static func payout(summary: Dictionary) -> int:
 	if not summary.get("delivered", true):

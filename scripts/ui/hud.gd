@@ -94,7 +94,9 @@ func _process(_delta: float) -> void:
 	var gear_text := "R" if _truck.gearbox.is_reverse else str(_truck.gearbox.current_gear)
 	var lights := "lights ON" if _headlights_on() else "lights OFF"
 	var clock := DayCycle.clock_string(_time.current_hour()) if _time != null else "--:--"
-	_gear_label.text = "%s   gear %s   %d rpm   %s" % [clock, gear_text, roundi(_truck.engine_rpm), lights]
+	var fuel := _truck.get_node_or_null("FuelTank") as FuelTank
+	var fuel_text := "fuel %d%%" % roundi(fuel.level() * 100.0) if fuel != null else "fuel --"
+	_gear_label.text = "%s   gear %s   %d rpm   %s   %s" % [clock, gear_text, roundi(_truck.engine_rpm), fuel_text, lights]
 
 	if _mission != null:
 		_mission_label.text = _mission.status_text()

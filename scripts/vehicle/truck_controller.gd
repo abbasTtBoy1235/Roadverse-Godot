@@ -39,11 +39,13 @@ var _traction_wheels: Array[VehicleWheel3D] = []
 var _steer := 0.0
 var _wheel_radius := 0.5
 var _lights: TruckLights
+var _fuel: FuelTank
 
 
 func _ready() -> void:
 	gearbox = Gearbox.new(gear_ratios, final_drive, upshift_rpm, downshift_rpm)
 	_lights = get_node_or_null("Lights") as TruckLights
+	_fuel = get_node_or_null("FuelTank") as FuelTank
 
 	for child in get_children():
 		if child is VehicleWheel3D and child.use_as_traction:
@@ -85,6 +87,9 @@ func _read_gear_input() -> void:
 func _apply_engine_and_brakes() -> void:
 	var throttle := Input.get_action_strength("rv_throttle")
 	engine_load = throttle
+
+	if _fuel != null and _fuel.is_empty():
+		engine_load = 0.0
 	var brake_input := Input.get_action_strength("rv_brake")
 	var handbrake := Input.is_action_pressed("rv_handbrake")
 

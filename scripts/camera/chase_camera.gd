@@ -16,6 +16,11 @@ extends Camera3D
 @export var auto_recentre_delay := 1.2
 ## If the camera ever falls further behind than this, snap instead of easing.
 @export var snap_distance := 45.0
+@export var shake_strength := 0.09
+@export var impact_shake_threshold := 4.0
+
+var _shake := 0.0
+var _last_speed := 0.0
 @export var cockpit_offset := Vector3(0.0, 2.35, -1.9)
 
 enum Mode { CHASE, CHASE_CLOSE, COCKPIT }
@@ -68,9 +73,23 @@ func handle_input_event(event: InputEvent) -> void:
 			orbit.reset()
 
 
+## Reads the truck's speed each physics frame and turns a sudden stop into a
+## camera kick, so a guardrail strike is felt as well as heard.
+func _track_impact(delta: float) -> void:
+	if _target == null or not ("linear_velocity" in _target):
+		return
+
+	var speed: float = Vector3(_target.get("linear_velocity")).length()
+	_shake = maxf(_shake, shake_for(speed - _last_speed, impact_shake_threshold))
+	_last_speed = speed
+	_shake = move_toward(_shake, 0.0, delta * 1.8)
+
+
 func _process(delta: float) -> void:
 	if _target == null:
 		return
+
+	_track_impact(delta)
 
 	_since_look += delta
 	if _since_look > auto_recentre_delay and orbit.is_offset():
@@ -103,6 +122,15 @@ func _process(delta: float) -> void:
 	else:
 		global_position = global_position.lerp(desired, weight)
 
+	# A knocked rig shakes the camera: a decaying wobble on both axes.
+	if _shake > 0.001:
+		var wobble := Vector3(
+			sin(Time.get_ticks_msec() * 0.05) * _shake * shake_strength,
+			cos(Time.get_ticks_msec() * 0.07) * _shake * shake_strength,
+			0.0
+		)
+		global_position += global_basis * wobble
+
 	look_at(_target.global_position + Vector3.UP * look_height, Vector3.UP)
 
 
@@ -111,6 +139,16 @@ func _sensitivity() -> float:
 		return 0.12
 
 	return Settings.mouse_sensitivity
+
+
+## Camera shake demanded by a sudden change of speed, in m/s.
+static func shake_for(delta_speed: float, threshold := 4.0) -> float:
+	return clampf((absf(delta_speed) - threshold) * 0.12, 0.0, 1.0)
+
+
+## Test hook: current shake amount, 0..1.
+func shake_amount() -> float:
+	return _shake
 
 
 ## Test hook: the current view offset as (yaw, pitch).

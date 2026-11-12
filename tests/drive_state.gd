@@ -149,6 +149,18 @@ func _check_drive() -> void:
 		_check(_mission.progress > 5.0, "the mission is counting the distance covered (%.0f m)" % _mission.progress)
 		_check(_mission.status_text().length() > 0, "the HUD has a mission line")
 
+	var tank := _truck.get_node_or_null("FuelTank") as FuelTank
+
+	if tank != null:
+		_check(tank.level() < 1.0, "driving burns diesel (tank at %d%%)" % roundi(tank.level() * 100.0))
+		_check(tank.level() > 0.5, "a single haul does not empty the tank")
+		_check(tank.litres_used > 0.0, "the fuel counter is running (%.2f L)" % tank.litres_used)
+
+	var camera := _game.get_node_or_null("ChaseCamera") as ChaseCamera
+
+	if camera != null:
+		_check(camera.shake_amount() >= 0.0, "the camera shake hook reports a value")
+
 	if _noise != null:
 		_check(_noise.call("tyre_level") > 0.1, "tyre noise follows the speed (%.2f)" % _noise.call("tyre_level"))
 		_check(_noise.call("wind_level") >= 0.0, "wind level is sane (%.2f)" % _noise.call("wind_level"))

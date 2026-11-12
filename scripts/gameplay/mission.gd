@@ -41,6 +41,7 @@ var _truck: TruckController
 var _road: Node3D
 var _gate: Node3D
 var _last_speed := 0.0
+var _fuel: FuelTank
 
 
 ## Damage caused by one shock, as a fraction of the cargo's value.
@@ -94,6 +95,10 @@ func _ready() -> void:
 
 	if _truck != null:
 		_last_speed = _truck.speed_kph()
+		_fuel = _truck.get_node_or_null("FuelTank") as FuelTank
+
+		if _fuel != null:
+			_fuel.reset()
 
 
 func _physics_process(delta: float) -> void:
@@ -120,17 +125,24 @@ func _physics_process(delta: float) -> void:
 
 func _finish() -> void:
 	state = State.DELIVERED
+	var summary := {}
 	score = score_for(elapsed, damage, par_seconds, base_score)
 
 	if score > best_score:
 		best_score = score
 
-	var summary := {
+	var fuel_used := _fuel.litres_used if _fuel != null else 0.0
+	var par := CareerMath.par_fuel(goal_distance)
+	var bonus := CareerMath.economy_bonus(fuel_used, par)
+
+	summary = {
 		"score": score,
 		"seconds": elapsed,
 		"damage": damage,
 		"cargo": cargo_name,
 		"delivered": true,
+		"fuel_used": fuel_used,
+		"fuel_bonus": bonus,
 	}
 
 	var career := get_node_or_null("/root/Career")

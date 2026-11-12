@@ -94,12 +94,14 @@ func _on_delivered(summary: Dictionary) -> void:
 	var rank := String(career.call("rank")) if career != null else "Rookie"
 	var best := int(career.get("best_score")) if career != null else int(summary.get("score", 0.0))
 
-	_lines.text = "%s\n%s\nTime %.0fs   ·   damage %d%%\nPaid $%d   ·   total $%d   ·   best %d\nRank: %s" % [
+	_lines.text = "%s\n%s\nTime %.0fs   ·   damage %d%%   ·   fuel %.1f L\nPaid $%d (incl. $%d economy)   ·   total $%d\nBest %d   ·   rank %s" % [
 		summary.get("cargo", "Cargo"),
 		"Score %d" % roundi(float(summary.get("score", 0.0))),
 		float(summary.get("seconds", 0.0)),
 		roundi(float(summary.get("damage", 0.0)) * 100.0),
-		paid, cash, best, rank,
+		float(summary.get("fuel_used", 0.0)),
+		paid, int(summary.get("fuel_bonus", 0)), cash,
+		best, rank,
 	]
 
 	_action.text = "NEXT JOB  (Enter)"

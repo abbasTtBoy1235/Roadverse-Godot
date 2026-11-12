@@ -30,6 +30,14 @@ extends Node3D
 @export var pole_spacing := 68.0
 @export var sign_count := 7
 
+@export_group("Extra detail")
+@export var stud_spacing := 8.0
+@export var fence_post_spacing := 6.0
+@export var shrub_spacing := 7.0
+@export var km_marker_spacing := 100.0
+@export var wire_sag := 1.1
+@export var overpass_at := 0.55
+
 @export_group("Distant scenery")
 @export var hill_count := 9
 @export var hill_distance := 300.0
@@ -52,6 +60,9 @@ var _lamp_glass: StandardMaterial3D
 var _reflector: StandardMaterial3D
 var _sign_face: StandardMaterial3D
 var _hill: StandardMaterial3D
+var _wire_material: StandardMaterial3D
+var _concrete: StandardMaterial3D
+var _city_glow: StandardMaterial3D
 
 
 func _ready() -> void:
@@ -79,8 +90,15 @@ func build() -> void:
 	_build_trees()
 	_build_rocks()
 	_build_power_poles()
+	_build_power_wires()
 	_build_signs()
+	_build_km_markers()
+	_build_road_studs()
+	_build_fence()
+	_build_shrubs()
+	_build_overpass()
 	_build_distant_hills()
+	_build_city_glow()
 
 
 # ------------------------------------------------------------------ curve ----
@@ -167,6 +185,16 @@ func _create_materials() -> void:
 	_sign_face.emission_energy_multiplier = 0.35
 
 	_hill = _mat(Color(0.035, 0.04, 0.055), 1.0)
+
+	_wire_material = _mat(Color(0.05, 0.05, 0.06), 0.6)
+	_wire_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	_concrete = _mat(Color(0.22, 0.21, 0.2), 0.85)
+
+	_city_glow = _mat(Color(0.9, 0.72, 0.45), 0.5)
+	_city_glow.emission_enabled = true
+	_city_glow.emission = Color(1.0, 0.72, 0.38)
+	_city_glow.emission_energy_multiplier = 1.4
 
 
 func _mat(colour: Color, roughness: float) -> StandardMaterial3D:
@@ -547,6 +575,227 @@ func _build_distant_hills() -> void:
 		transforms.append(Transform3D(basis, _place(distance, lateral, -2.0)))
 
 	_add_multimesh("DistantHills", hill_mesh, _hill, transforms)
+
+
+func _build_power_wires() -> void:
+	# Catenary wires between consecutive crossbars. Flat ribbons with culling
+	# disabled, so they read from below as well.
+	var lateral := -(road_width * 0.5 + shoulder_width + 5.0)
+	var spacing := pole_spacing
+	var sag := wire_sag
+
+	var pole_positions: Array[Vector3] = []
+	var offset := spacing * 0.5
+	while offset < _baked_length:
+		pole_positions.append(_place(offset, lateral, 9.6))
+		offset += spacing
+
+	if pole_positions.size() < 2:
+		return
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	for i in pole_positions.size() - 1:
+		var from := pole_positions[i]
+		var to := pole_positions[i + 1]
+
+		for wire_side: float in [-1.15, 1.15]:
+			var a := from + _right(0.0) * wire_side
+			var b := to + _right(0.0) * wire_side
+			var previous := a
+
+			var segments := 10
+			for step in range(1, segments + 1):
+				var t := float(step) / float(segments)
+				var point := a.lerp(b, t) - Vector3.UP * (sin(t * PI) * sag)
+				_add_wire_quad(st, previous, point)
+				previous = point
+
+	_commit(st, "PowerWires", _wire_material)
+
+
+func _add_wire_quad(st: SurfaceTool, from: Vector3, to: Vector3) -> void:
+	var half := 0.035
+	var across := (to - from).cross(Vector3.UP).normalized() * half
+
+	st.set_normal(Vector3.UP)
+	st.add_vertex(from - across)
+	st.set_normal(Vector3.UP)
+	st.add_vertex(to - across)
+	st.set_normal(Vector3.UP)
+	st.add_vertex(to + across)
+
+	st.set_normal(Vector3.UP)
+	st.add_vertex(from - across)
+	st.set_normal(Vector3.UP)
+	st.add_vertex(to + across)
+	st.set_normal(Vector3.UP)
+	st.add_vertex(from + across)
+
+
+func _build_road_studs() -> void:
+	# Cat's eyes along the centre line, like a real highway at night.
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.14, 0.05, 0.22)
+
+	var transforms: Array[Transform3D] = []
+	var offset := stud_spacing * 0.5
+
+	while offset < _baked_length:
+		transforms.append(Transform3D(_basis(offset), _place(offset, 0.0, 0.02)))
+		offset += stud_spacing
+
+	_add_multimesh("RoadStuds", mesh, _reflector, transforms)
+
+
+func _build_km_markers() -> void:
+	var post_mesh := CylinderMesh.new()
+	post_mesh.top_radius = 0.05
+	post_mesh.bottom_radius = 0.06
+	post_mesh.height = 1.1
+	post_mesh.radial_segments = 5
+
+	var plate_mesh := BoxMesh.new()
+	plate_mesh.size = Vector3(0.34, 0.46, 0.05)
+
+	var lateral := road_width * 0.5 + shoulder_width + 1.1
+	var post_transforms: Array[Transform3D] = []
+	var plate_transforms: Array[Transform3D] = []
+
+	var offset := km_marker_spacing
+	while offset < _baked_length:
+		var basis := _basis(offset)
+		post_transforms.append(Transform3D(basis, _place(offset, lateral, 0.55)))
+		plate_transforms.append(Transform3D(basis, _place(offset, lateral, 1.15)))
+		offset += km_marker_spacing
+
+	_add_multimesh("KmMarkerPosts", post_mesh, _metal, post_transforms)
+	_add_multimesh("KmMarkerPlates", plate_mesh, _sign_face, plate_transforms)
+
+
+func _build_fence() -> void:
+	# Simple post-and-rail fence on the far side, behind the trees.
+	var lateral := -(road_width * 0.5 + shoulder_width + 11.0)
+
+	var post_mesh := CylinderMesh.new()
+	post_mesh.top_radius = 0.07
+	post_mesh.bottom_radius = 0.09
+	post_mesh.height = 1.35
+	post_mesh.radial_segments = 5
+
+	var post_transforms: Array[Transform3D] = []
+	var offset := 0.0
+	while offset < _baked_length:
+		post_transforms.append(Transform3D(_basis(offset), _place(offset, lateral, 0.67)))
+		offset += fence_post_spacing
+
+	_add_multimesh("FencePosts", post_mesh, _bark, post_transforms)
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	for height: float in [0.85, 1.25]:
+		var distance := 0.0
+		while distance < _baked_length:
+			var next := minf(distance + mesh_step, _baked_length)
+			_add_wall_quad(st, distance, next, lateral, height - 0.04, height + 0.04)
+			distance = next
+
+	_commit(st, "FenceRails", _bark)
+
+
+func _build_shrubs() -> void:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.0
+	mesh.bottom_radius = 0.75
+	mesh.height = 1.15
+	mesh.radial_segments = 5
+
+	var transforms: Array[Transform3D] = []
+	var offset := 2.0
+
+	while offset < _baked_length:
+		if _rng.randf() < 0.55:
+			var side := -1.0 if _rng.randf() < 0.5 else 1.0
+			var lateral := side * _rng.randf_range(road_width * 0.5 + 4.2, road_width * 0.5 + 13.0)
+			var scale := _rng.randf_range(0.5, 1.3)
+			var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(scale, scale, scale))
+			transforms.append(Transform3D(basis, _place(offset, lateral, 0.5 * scale)))
+		offset += shrub_spacing
+
+	_add_multimesh("Shrubs", mesh, _leaves, transforms)
+
+
+func _build_overpass() -> void:
+	var distance := _baked_length * overpass_at
+	var basis := _basis(distance)
+	var centre := _place(distance, 0.0, 0.0)
+
+	var span := road_width + 2.0 * (shoulder_width + 2.5)
+	var deck_height := 6.2
+
+	var root := Node3D.new()
+	root.name = "Overpass"
+	root.transform = Transform3D(basis, centre)
+	add_child(root)
+
+	var deck_mesh := BoxMesh.new()
+	deck_mesh.size = Vector3(span, 0.85, 7.5)
+	var deck := MeshInstance3D.new()
+	deck.name = "Deck"
+	deck.mesh = deck_mesh
+	deck.material_override = _concrete
+	deck.position = Vector3(0.0, deck_height, 0.0)
+	root.add_child(deck)
+
+	for side: float in [-1.0, 1.0]:
+		var parapet_mesh := BoxMesh.new()
+		parapet_mesh.size = Vector3(span, 0.9, 0.35)
+
+		var parapet := MeshInstance3D.new()
+		parapet.mesh = parapet_mesh
+		parapet.material_override = _concrete
+		parapet.position = Vector3(0.0, deck_height + 0.85, side * 3.5)
+		root.add_child(parapet)
+
+		var pillar_mesh := BoxMesh.new()
+		pillar_mesh.size = Vector3(1.5, deck_height, 1.5)
+
+		var pillar := MeshInstance3D.new()
+		pillar.mesh = pillar_mesh
+		pillar.material_override = _concrete
+		pillar.position = Vector3(side * (span * 0.5 - 1.6), deck_height * 0.5, 0.0)
+		root.add_child(pillar)
+
+
+func _build_city_glow() -> void:
+	# A distant skyline of emissive blocks. WorldEnvironment glow turns these
+	# into a haze on the horizon, which reads as a city at night.
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(1.0, 1.0, 1.0)
+
+	var transforms: Array[Transform3D] = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + 7
+
+	# Place the skyline past the end of the road, spread across the horizon.
+	var end_point := _point(_baked_length)
+	var end_direction := _tangent(_baked_length)
+	var end_right := _right(_baked_length)
+
+	for i in 70:
+		var lateral := rng.randf_range(-240.0, 240.0)
+		var width := rng.randf_range(8.0, 26.0)
+		var height := rng.randf_range(10.0, 55.0)
+		var depth := rng.randf_range(8.0, 26.0)
+		var ahead := rng.randf_range(-30.0, 160.0)
+
+		var position := end_point + end_direction * ahead + end_right * lateral + Vector3.UP * (height * 0.5)
+		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(width, height, depth))
+		transforms.append(Transform3D(basis, position))
+
+	_add_multimesh("CityBlocks", mesh, _city_glow, transforms)
 
 
 # ------------------------------------------------------------------ helper ----

@@ -3,6 +3,27 @@
 Drop-in folder for real art. Nothing here is required: with an empty folder the
 game uses the procedural truck, the procedural trailer and the procedural road.
 
+## How to get the file here
+
+Binary uploads are blocked in chat (only images and text), so use one of these:
+
+1. **Direct link — easiest and best.** Put the GLB anywhere that serves it and send the URL:
+   - GitHub: open the file, click **Raw**, copy that address.
+   - Dropbox: replace `?dl=0` with `?raw=1`.
+   - Google Drive: `https://drive.google.com/uc?export=download&id=<FILE_ID>`.
+   Then it is one command:
+   ```bash
+   ./tools/fetch-model.sh "https://……/truck.glb"
+   ```
+   That downloads it to `models/truck.glb`, then runs `tools/inspect_glb.py` and prints the
+   node tree, size, triangle count and whether the wheel nodes were found.
+
+2. **Base64 text** for small files (< ~2 MB): `base64 -w0 truck.glb > truck.glb.b64.txt` and send
+   the `.txt`. It round-trips to a GLB exactly, but big files are impractical this way.
+
+3. **Screenshots** (PNG/JPG are allowed): useful for judging the look, which is the part automated
+   checks cannot see — but a picture cannot become a mesh.
+
 ## The truck
 
 Put the mesh at **`models/truck.glb`** and it is picked up automatically on the

@@ -3,9 +3,9 @@
 A night-driving **truck simulator** for PC, built in **Godot 4.7** (Forward+).
 
 > Status: **playable vertical slice.** Main menu, settings, pause menu, a truck with a real
-> gearbox, a mouse-driven chase camera, and a detailed procedural night road with guardrails,
-> lamps, trees, power lines, an overpass and a distant skyline. There is no traffic, cargo,
-> missions or save system yet.
+> gearbox and a synthesised diesel engine, spinning and steering wheels, a mouse-driven chase
+> camera, oncoming traffic, and a detailed procedural night road with guardrails, lamps, trees,
+> power lines, an overpass and a distant skyline. There is no cargo, mission or save system yet.
 
 [![verify](https://github.com/abbasTtBoy1235/Roadverse-Godot/actions/workflows/verify.yml/badge.svg)](https://github.com/abbasTtBoy1235/Roadverse-Godot/actions/workflows/verify.yml)
 
@@ -70,9 +70,11 @@ That runs three steps headlessly:
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
 | `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 34 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 5 checks |
+| `tests/test_audio_traffic.gd` | engine synth + traffic maths — 12 checks |
+| `tests/drive_state.tscn` | wheels spin/steer, audio follows revs, traffic moves — 14 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**193 checks total.** The same suite runs on every push in GitHub Actions
+**219 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -85,6 +87,8 @@ godot --headless --path . --script res://tests/test_road_geometry.gd
 godot --headless --path . --script res://tests/test_camera_orbit.gd
 godot --headless --path . res://tests/ui_flow.tscn
 godot --headless --path . res://tests/camera_follow.tscn
+godot --headless --path . --script res://tests/test_audio_traffic.gd
+godot --headless --path . res://tests/drive_state.tscn
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
@@ -124,10 +128,22 @@ throttle via `Input.action_press`, and asserts that the truck:
 | Overpass | concrete deck with parapets and pillars at 55% of the route |
 | Distant hills | low-poly silhouettes 240–420 m out, no collision |
 | City glow | emissive skyline past the end of the road, picked up by the glow pass |
+| Traffic | seven oncoming cars looping the other lane, each with emissive lamps and one light |
 
 Repeated props use `MultiMeshInstance3D`, so ~900 instances cost a handful of draw calls.
 Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for a different
 layout; the geometry test asserts that the same seed reproduces the same layout.
+
+---
+
+## Sound and wheels
+
+- **Engine audio is synthesised, not sampled.** `EngineAudio` fills an `AudioStreamGenerator`
+  with a four-stroke firing frequency (`rpm / 120 * cylinders`) plus three harmonics, and scales
+  the gain with revs and pedal load. No audio files, same as everything else in this repo.
+- **Wheels are driven visually.** Physics wheels do not move their children, so `WheelVisuals`
+  spins each mesh by `get_rpm()` and yaws the steered wheels. The pivot uses Godot's YXZ Euler
+  order so steering wraps around the spin, not the other way round.
 
 ---
 
@@ -232,11 +248,11 @@ All four would have shipped invisibly in a code-only review.
 
 - [ ] No visual verification of the night lighting — headless has no renderer, so materials,
       fog and light intensities are unverified by tests
-- [ ] No engine / wind / tyre audio
+- [ ] Only one sound layer (engine). No tyre, wind, brake or horn audio
+- [ ] Traffic has no collision or AI driving behaviour — it is a fixed loop
 - [ ] No traffic, no cargo, no missions, no save system
 - [ ] Roadside props have no collision — you can drive through trees and the overpass pillars
 - [ ] Power line wires are not modelled (poles only)
-- [ ] Steering has no wheel visual feedback (wheels don't spin visually yet)
 - [ ] Truck is 4-wheeled; no trailer articulation yet
 
 ## License

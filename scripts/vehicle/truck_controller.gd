@@ -32,6 +32,8 @@ extends VehicleBody3D
 
 var gearbox: Gearbox
 var engine_rpm := 0.0
+## 0..1 pedal load, read by the engine audio synth.
+var engine_load := 0.0
 
 var _traction_wheels: Array[VehicleWheel3D] = []
 var _steer := 0.0
@@ -82,6 +84,7 @@ func _read_gear_input() -> void:
 
 func _apply_engine_and_brakes() -> void:
 	var throttle := Input.get_action_strength("rv_throttle")
+	engine_load = throttle
 	var brake_input := Input.get_action_strength("rv_brake")
 	var handbrake := Input.is_action_pressed("rv_handbrake")
 

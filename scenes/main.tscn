@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/core/game.gd" id="1_game"]
 [ext_resource type="PackedScene" path="res://scenes/truck.tscn" id="2_truck"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="5_hud"]
 [ext_resource type="Script" path="res://scripts/world/time_of_day.gd" id="6_time"]
 [ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="7_pause"]
+[ext_resource type="Script" path="res://scripts/world/traffic.gd" id="8_traffic"]
 
 [sub_resource type="Environment" id="Env_night"]
 background_mode = 1
@@ -70,6 +71,10 @@ shape = SubResource("Shape_ground")
 
 [node name="Road" type="Node3D" parent="."]
 script = ExtResource("3_road")
+
+[node name="Traffic" type="Node3D" parent="."]
+script = ExtResource("8_traffic")
+road_path = NodePath("../Road")
 
 [node name="Truck" parent="." instance=ExtResource("2_truck")]
 position = Vector3(0, 1.2, 0)

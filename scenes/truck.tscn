@@ -1,7 +1,9 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/vehicle/truck_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://scripts/vehicle/truck_lights.gd" id="2_lights"]
+[ext_resource type="Script" path="res://scripts/vehicle/wheel_visuals.gd" id="3_wheels"]
+[ext_resource type="Script" path="res://scripts/audio/engine_audio.gd" id="4_audio"]
 
 [sub_resource type="BoxShape3D" id="Shape_body"]
 size = Vector3(2.4, 2.6, 8.0)
@@ -67,7 +69,9 @@ damping_compression = 1.1
 damping_relaxation = 1.5
 wheel_friction_slip = 3.0
 
-[node name="Visual" type="MeshInstance3D" parent="WheelFL"]
+[node name="Spin" type="Node3D" parent="WheelFL"]
+
+[node name="Visual" type="MeshInstance3D" parent="WheelFL/Spin"]
 rotation = Vector3(0, 0, 1.5708)
 mesh = SubResource("Mesh_wheel")
 material_override = SubResource("Mat_wheel")
@@ -85,7 +89,9 @@ damping_compression = 1.1
 damping_relaxation = 1.5
 wheel_friction_slip = 3.0
 
-[node name="Visual" type="MeshInstance3D" parent="WheelFR"]
+[node name="Spin" type="Node3D" parent="WheelFR"]
+
+[node name="Visual" type="MeshInstance3D" parent="WheelFR/Spin"]
 rotation = Vector3(0, 0, 1.5708)
 mesh = SubResource("Mesh_wheel")
 material_override = SubResource("Mat_wheel")
@@ -102,7 +108,9 @@ damping_compression = 1.1
 damping_relaxation = 1.5
 wheel_friction_slip = 3.0
 
-[node name="Visual" type="MeshInstance3D" parent="WheelRL"]
+[node name="Spin" type="Node3D" parent="WheelRL"]
+
+[node name="Visual" type="MeshInstance3D" parent="WheelRL/Spin"]
 rotation = Vector3(0, 0, 1.5708)
 mesh = SubResource("Mesh_wheel")
 material_override = SubResource("Mat_wheel")
@@ -119,7 +127,9 @@ damping_compression = 1.1
 damping_relaxation = 1.5
 wheel_friction_slip = 3.0
 
-[node name="Visual" type="MeshInstance3D" parent="WheelRR"]
+[node name="Spin" type="Node3D" parent="WheelRR"]
+
+[node name="Visual" type="MeshInstance3D" parent="WheelRR/Spin"]
 rotation = Vector3(0, 0, 1.5708)
 mesh = SubResource("Mesh_wheel")
 material_override = SubResource("Mat_wheel")
@@ -156,3 +166,11 @@ position = Vector3(0.9, 1.0, 4.05)
 light_color = Color(1, 0.12, 0.06, 1)
 light_energy = 2.2
 omni_range = 6.0
+
+[node name="WheelVisuals" type="Node3D" parent="."]
+script = ExtResource("3_wheels")
+
+[node name="EngineAudio" type="AudioStreamPlayer" parent="."]
+volume_db = -6.0
+script = ExtResource("4_audio")
+truck_path = NodePath("..")

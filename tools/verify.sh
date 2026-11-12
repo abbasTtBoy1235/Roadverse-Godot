@@ -62,6 +62,9 @@ run_step "gearbox unit tests" \
 run_step "day/night cycle tests" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script res://tests/test_day_cycle.gd
 
+run_step "road geometry tests" \
+	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script res://tests/test_road_geometry.gd
+
 run_step "physics smoke test" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/smoke_test.tscn
 

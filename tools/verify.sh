@@ -77,6 +77,9 @@ run_step "weather and road-noise tests" \
 run_step "mission scoring tests" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script res://tests/test_mission.gd
 
+run_step "career maths tests" \
+	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" --script res://tests/test_career.gd
+
 run_step "menu and camera wiring" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/ui_flow.tscn
 
@@ -85,6 +88,9 @@ run_step "camera follow regression" \
 
 run_step "drive state (wheels, audio, traffic, trailer, mission, rain, barriers)" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/drive_state.tscn
+
+run_step "mission failure regression" \
+	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/mission_failure.tscn
 
 run_step "physics smoke test" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/smoke_test.tscn

@@ -19,6 +19,9 @@ var _noise: Node
 var _road: Node3D
 var _trailer: Node3D
 var _mission: Mission
+var _results: CanvasLayer
+var _cash_before := 0
+var _job_before := 0
 
 var _elapsed := 0.0
 var _phase := 0
@@ -28,6 +31,14 @@ var _failures := 0
 
 
 func _ready() -> void:
+	# The results screen pauses the tree, so this test must keep ticking.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		career.call("reset_progress")
+
 	_game = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	add_child(_game)
 
@@ -40,6 +51,13 @@ func _ready() -> void:
 	_road = _game.get_node("Road") as Node3D
 	_trailer = _game.get_node("Trailer") as Node3D
 	_mission = _game.get_node("Mission") as Mission
+	_results = _game.get_node("Results") as CanvasLayer
+
+	var career_node := get_node_or_null("/root/Career")
+
+	if career_node != null:
+		_cash_before = int(career_node.get("cash"))
+		_job_before = int(career_node.get("job_index"))
 
 	_check(_truck != null, "truck found")
 	_check(_wheels != null, "wheel visuals found")
@@ -50,6 +68,7 @@ func _ready() -> void:
 	_check(_road != null, "road found")
 	_check(_trailer != null, "trailer found")
 	_check(_mission != null, "mission found")
+	_check(_results != null, "results panel found")
 
 	if _wheels != null:
 		_check(_wheels.wheel_count() == 4, "all four wheels are driven visually (%d)" % _wheels.wheel_count())
@@ -262,6 +281,16 @@ func _check_delivery() -> void:
 	_check(_mission.score > 0.0, "the run is scored (%d)" % roundi(_mission.score))
 	_check(_mission.damage >= 0.0 and _mission.damage <= 1.0, "damage stays in range (%.0f%%)" % (_mission.damage * 100.0))
 	_check("DELIVERED" in _mission.status_text(), "the HUD announces the delivery")
+
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		_check(int(career.get("cash")) > _cash_before, "the delivery paid out ($%d)" % int(career.get("cash")))
+		_check(int(career.get("job_index")) == _job_before + 1, "the next job is queued")
+
+	if _results != null and _results.has_method("is_showing"):
+		_check(_results.call("is_showing"), "the results screen is on")
+		_check("Score" in String(_results.call("summary_text")), "the results screen shows the score")
 
 
 func _finish() -> void:

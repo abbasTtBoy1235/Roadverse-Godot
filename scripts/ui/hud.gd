@@ -11,6 +11,8 @@ var _gear_label: Label
 var _hint_label: Label
 var _mission_label: Label
 var _mission: Mission
+var _career_label: Label
+var _damage_bar: ProgressBar
 
 
 func _ready() -> void:
@@ -36,6 +38,19 @@ func _build() -> void:
 	_mission_label = _make_label(self, 20, Color(0.55, 1.0, 0.7))
 	_mission_label.position = Vector2(24, 118)
 
+	_career_label = _make_label(self, 15, Color(0.62, 0.66, 0.78))
+	_career_label.position = Vector2(24, 146)
+
+	_damage_bar = ProgressBar.new()
+	_damage_bar.position = Vector2(24, 196)
+	_damage_bar.size = Vector2(180, 8)
+	_damage_bar.min_value = 0.0
+	_damage_bar.max_value = 100.0
+	_damage_bar.show_percentage = false
+	_damage_bar.add_theme_stylebox_override("background", _bar_style(Color(0.08, 0.1, 0.12, 0.85)))
+	_damage_bar.add_theme_stylebox_override("fill", _bar_style(Color(0.9, 0.55, 0.25)))
+	add_child(_damage_bar)
+
 	_hint_label = _make_label(self, 15, Color(0.75, 0.78, 0.85))
 	_hint_label.position = Vector2(24, 172)
 	_hint_label.text = "W/S throttle · A/D steer · Space handbrake · L lights · C camera · F rain · R restart · Esc pause"
@@ -47,6 +62,13 @@ func _make_label(parent: Node, font_size: int, color: Color) -> Label:
 	label.add_theme_color_override("font_color", color)
 	parent.add_child(label)
 	return label
+
+
+func _bar_style(colour: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = colour
+	style.set_corner_radius_all(4)
+	return style
 
 
 func _panel_style() -> StyleBoxFlat:
@@ -76,6 +98,17 @@ func _process(_delta: float) -> void:
 
 	if _mission != null:
 		_mission_label.text = _mission.status_text()
+		_damage_bar.value = _mission.damage * 100.0
+
+	var career := get_node_or_null("/root/Career")
+
+	if career != null and _career_label != null:
+		_career_label.text = "JOB %d  ·  $%d  ·  %s  ·  best %d" % [
+			int(career.get("job_index")) + 1,
+			int(career.get("cash")),
+			String(career.call("rank")),
+			int(career.get("best_score")),
+		]
 
 
 func _headlights_on() -> bool:

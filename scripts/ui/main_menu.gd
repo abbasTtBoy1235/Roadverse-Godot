@@ -71,6 +71,25 @@ func _build() -> void:
 	_menu_box.add_theme_constant_override("separation", 14)
 	add_child(_menu_box)
 
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		var job := int(career.get("job_index")) + 1
+		var cargo := String(career.call("current_cargo")).to_lower()
+
+		var status := Label.new()
+		status.name = "CareerStatus"
+		status.text = "Job %d  ·  %s\n$%d  ·  %s  ·  best %d" % [
+			job, cargo,
+			int(career.get("cash")),
+			String(career.call("rank")),
+			int(career.get("best_score")),
+		]
+		status.add_theme_font_size_override("font_size", 16)
+		status.add_theme_color_override("font_color", Color(0.5, 0.78, 0.6))
+		status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_menu_box.add_child(status)
+
 	play_button = _make_button(_menu_box, "PlayButton", "PLAY")
 	settings_button = _make_button(_menu_box, "SettingsButton", "SETTINGS")
 	quit_button = _make_button(_menu_box, "QuitButton", "QUIT")

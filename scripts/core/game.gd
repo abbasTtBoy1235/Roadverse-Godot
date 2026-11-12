@@ -5,6 +5,22 @@ extends Node3D
 const TELEMETRY_FLAG := "--rv-telemetry"
 
 
+## Runs before the children enter the tree, which is the only moment the road's
+## exported seed and length can still change what it builds.
+func _enter_tree() -> void:
+	var road := get_node_or_null("Road")
+
+	if road == null:
+		return
+
+	var career := get_node_or_null("/root/Career")
+	if career == null:
+		return
+
+	road.set("seed_value", career.call("current_seed"))
+	road.set("road_length", career.call("current_route_length"))
+
+
 func _ready() -> void:
 	InputSetup.ensure_registered()
 

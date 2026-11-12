@@ -75,10 +75,12 @@ That runs three steps headlessly:
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap and car-following maths — 17 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
-| `tests/drive_state.tscn` | wheels, audio, traffic, trailer, rain, barriers, props and a full delivery — 48 checks |
+| `tests/test_career.gd` | routes, pay, ranks and promotion maths — 25 checks |
+| `tests/drive_state.tscn` | wheels, audio, traffic, trailer, rain, barriers, props, a full delivery and the payout — 53 checks |
+| `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**302 checks total.** The same suite runs on every push in GitHub Actions
+**343 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -94,7 +96,9 @@ godot --headless --path . res://tests/camera_follow.tscn
 godot --headless --path . --script res://tests/test_audio_traffic.gd
 godot --headless --path . --script res://tests/test_weather_noise.gd
 godot --headless --path . --script res://tests/test_mission.gd
+godot --headless --path . --script res://tests/test_career.gd
 godot --headless --path . res://tests/drive_state.tscn
+godot --headless --path . res://tests/mission_failure.tscn
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
@@ -143,6 +147,20 @@ Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for 
 layout; the geometry test asserts that the same seed reproduces the same layout.
 
 ---
+
+## The career
+
+- **Every job generates its own road.** `Career` keeps your job number; `CareerMath.route_seed()`
+  turns it into a seed and `Game._enter_tree()` hands it to the road *before* the road builds
+  itself. Route length also grows with the job number, from 560 m to 770 m.
+- **Pay and rank.** A delivery pays `score × 0.12`; the ranks ladder is Rookie → Junior driver →
+  Company driver → Long-haul driver → Owner-operator. The menu and HUD both show where you stand.
+- **A wrecked load is a failed job.** Damage reaches 100% and the run ends with no pay and the
+  same route waiting for you — the job index only advances on a delivery.
+- **Results screen.** Delivered or wrecked, the world pauses, the numbers are on screen, and
+  `Enter` takes the next route (fresh scene, fresh seed, fresh road).
+- Saved in `user://career.cfg` — job number, cash, deliveries and best score.
+- Start over by deleting that file, or `Career.reset_progress()`.
 
 ## The job
 
@@ -311,7 +329,8 @@ All four would have shipped invisibly in a code-only review.
 - [ ] Traffic has no collision and never changes lane, so it follows rather than overtakes
 - [ ] The trailer is kinematic: it cannot jackknife into a real crash, and cargo weight does
       not affect the tractor
-- [ ] One delivery per session, no save, no multi-stop routes, no fuel or hours-of-service rules
+- [ ] No fuel, engine wear, hours-of-service or trailer damage
+- [ ] No multi-stop routes, no cargo market, no garage or truck upgrades
 - [ ] Only the guardrails collide — trees, rocks and the overpass pillars are still ghost geometry
 - [ ] Power line wires are not modelled (poles only)
 - [ ] Truck is 4-wheeled; no trailer articulation yet

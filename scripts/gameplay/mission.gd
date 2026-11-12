@@ -8,11 +8,12 @@ extends Node
 
 signal state_changed(state: int)
 signal delivered(summary: Dictionary)
+signal failed(summary: Dictionary)
 
-enum State { DRIVING, DELIVERED }
+enum State { DRIVING, DELIVERED, FAILED }
 
 @export_group("Job")
-@export var cargo_name := "Steel coils"
+@export var cargo_name := ""
 @export var goal_fraction := 0.92
 @export var arrival_speed_kph := 15.0
 @export var par_seconds := 95.0
@@ -73,6 +74,12 @@ static func progress_fraction(progress_distance: float, goal: float) -> float:
 
 func _ready() -> void:
 	_truck = get_node_or_null(truck_path) as TruckController
+
+	var career := get_node_or_null("/root/Career")
+
+	if cargo_name.is_empty():
+		cargo_name = String(career.call("current_cargo")) if career != null else "Steel coils"
+
 	_road = get_node_or_null(road_path) as Node3D
 
 	if _road == null or not _road.has_method("nearest_distance"):
@@ -103,6 +110,10 @@ func _physics_process(delta: float) -> void:
 	if shock > impact_threshold:
 		damage = clampf(damage + damage_for_impact(shock, damage_per_impact, impact_threshold), 0.0, 1.0)
 
+	if damage >= 1.0:
+		_fail()
+		return
+
 	if is_arrived(progress, goal_distance, speed, arrival_speed_kph):
 		_finish()
 
@@ -119,16 +130,55 @@ func _finish() -> void:
 		"seconds": elapsed,
 		"damage": damage,
 		"cargo": cargo_name,
+		"delivered": true,
 	}
+
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		career.call("record_delivery", summary)
+		var stored: Dictionary = career.get("last_summary")
+		summary["paid"] = int(stored.get("paid", 0))
 
 	state_changed.emit(state)
 	delivered.emit(summary)
+
+
+## The load did not survive the trip.
+func _fail() -> void:
+	state = State.FAILED
+	score = 0.0
+
+	var summary := {
+		"score": 0.0,
+		"seconds": elapsed,
+		"damage": damage,
+		"cargo": cargo_name,
+		"delivered": false,
+		"paid": 0,
+	}
+
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		career.call("record_failure", summary)
+
+	state_changed.emit(state)
+	failed.emit(summary)
+
+
+## Test hook: wreck the load on purpose.
+func take_damage(amount: float) -> void:
+	damage = clampf(damage + amount, 0.0, 1.0)
 
 
 ## Human readable line for the HUD.
 func status_text() -> String:
 	if state == State.DELIVERED:
 		return "%s DELIVERED  ·  score %d  ·  damage %d%%" % [cargo_name.to_upper(), roundi(score), roundi(damage * 100.0)]
+
+	if state == State.FAILED:
+		return "%s WRECKED  ·  job lost" % cargo_name.to_upper()
 
 	var percent := roundi(progress_fraction(progress, goal_distance) * 100.0)
 	var minutes := int(elapsed) / 60

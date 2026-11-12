@@ -39,7 +39,7 @@ mouse sensitivity, invert-Y and fullscreen choice in `user://settings.cfg`.
 | Shift up / down (manual mode only) | `E` / `Q` |
 | Headlights | `L` |
 | Camera: chase / close / cockpit | `C` |
-| Look around (hold) | Right mouse button |
+| Look around | Move the mouse (captured while driving) |
 | Zoom the camera | Mouse wheel |
 | Recentre the camera | Middle mouse button |
 | Pause menu | `Esc` |
@@ -68,10 +68,11 @@ That runs three steps headlessly:
 | `tests/test_day_cycle.gd` | day/night model — 20 checks |
 | `tests/test_road_geometry.gd` | procedural road — 90 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
-| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 31 checks |
+| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 34 checks |
+| `tests/camera_follow.tscn` | the camera keeps up with the truck — 5 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**185 checks total.** The same suite runs on every push in GitHub Actions
+**193 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -83,6 +84,7 @@ godot --headless --path . --script res://tests/test_day_cycle.gd
 godot --headless --path . --script res://tests/test_road_geometry.gd
 godot --headless --path . --script res://tests/test_camera_orbit.gd
 godot --headless --path . res://tests/ui_flow.tscn
+godot --headless --path . res://tests/camera_follow.tscn
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
@@ -132,9 +134,19 @@ layout; the geometry test asserts that the same seed reproduces the same layout.
 ## Camera
 
 `CameraOrbit` is the pure maths (yaw wrap, pitch clamp, zoom clamp, recentring); `ChaseCamera`
-applies it. Hold the **right mouse button** to look around relative to the truck, **wheel** to
-zoom, **middle click** to recentre, `C` to cycle chase / close / cockpit. When you let go the
-camera eases back behind the truck. Sensitivity and invert-Y come from the settings file.
+applies it.
+
+- **Free mouse look**: the pointer is captured while driving, so moving the mouse always rotates
+  the view — no button to hold. `Esc` releases it (pause menu).
+- After `auto_recentre_delay` (1.2 s) without mouse movement the camera eases back behind the truck.
+- **Wheel** zooms, **middle click** recentres, `C` cycles chase / close / cockpit.
+- If the camera ever ends up further than `snap_distance` (45 m) behind, it snaps instead of
+  drifting — a safety net so it can never detach from the truck.
+- Sensitivity and invert-Y come from the settings file.
+
+The `camera_follow` test drives the real scene for five seconds and asserts the gap between
+truck and camera stays between 5 m and 30 m the whole time; that is the regression test for
+"the camera stays behind while I drive".
 
 ---
 

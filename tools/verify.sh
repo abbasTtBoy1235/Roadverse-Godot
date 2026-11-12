@@ -71,6 +71,9 @@ run_step "camera orbit tests" \
 run_step "menu and camera wiring" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/ui_flow.tscn
 
+run_step "camera follow regression" \
+	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/camera_follow.tscn
+
 run_step "physics smoke test" \
 	"$GODOT_BIN" --headless --path "$PROJECT_ROOT" res://tests/smoke_test.tscn
 

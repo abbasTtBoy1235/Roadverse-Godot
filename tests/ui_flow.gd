@@ -115,6 +115,22 @@ func _check_game_scene() -> void:
 
 
 func _check_camera_wiring() -> void:
+	# Mouse look has to work with a plain mouse movement, no button held.
+	var free_camera := ChaseCamera.new()
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(70.0, 0.0)
+	free_camera.handle_input_event(motion)
+	_check(free_camera.orbit.is_offset(), "plain mouse movement rotates the camera")
+	_check(absf(free_camera.orbit.yaw) > 0.0, "a horizontal drag produces yaw")
+
+	var zoom_event := InputEventMouseButton.new()
+	zoom_event.button_index = MOUSE_BUTTON_WHEEL_UP
+	zoom_event.pressed = true
+	var zoom_before := free_camera.orbit.zoom
+	free_camera.handle_input_event(zoom_event)
+	_check(free_camera.orbit.zoom < zoom_before, "the wheel zooms in")
+	free_camera.free()
+
 	var orbit := CameraOrbit.new()
 	orbit.apply_mouse(Vector2(80.0, 0.0), Settings.mouse_sensitivity)
 	_check(orbit.is_offset(), "the camera orbit responds to mouse input")

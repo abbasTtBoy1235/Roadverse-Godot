@@ -36,6 +36,8 @@ func set_paused(paused: bool) -> void:
 	if paused:
 		resume_button.grab_focus()
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	else:
+		ChaseCamera.capture_mouse()
 
 
 func _build() -> void:

@@ -17,6 +17,10 @@ var _menu_box: VBoxContainer
 
 func _ready() -> void:
 	InputSetup.ensure_registered()
+
+	if DisplayServer.get_name() != "headless":
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
 	_build()
 	play_button.grab_focus()
 

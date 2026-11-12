@@ -16,6 +16,12 @@ const ACTIONS := {
 	"rv_toggle_headlights": [KEY_L],
 	"rv_toggle_camera": [KEY_C],
 	"rv_restart": [KEY_R],
+	"rv_pause": [KEY_ESCAPE],
+}
+
+## Mouse-bound actions: action name -> button index.
+const MOUSE_ACTIONS := {
+	"rv_look": MOUSE_BUTTON_RIGHT,
 }
 
 
@@ -24,6 +30,24 @@ func _ready() -> void:
 
 
 static func ensure_registered() -> void:
+	for action_name: String in MOUSE_ACTIONS:
+		if not InputMap.has_action(action_name):
+			InputMap.add_action(action_name)
+
+		var wanted: int = MOUSE_ACTIONS[action_name]
+		var present := false
+		for event: InputEvent in InputMap.action_get_events(action_name):
+			if event is InputEventMouseButton and event.button_index == wanted:
+				present = true
+				break
+
+		if present:
+			continue
+
+		var mouse_event := InputEventMouseButton.new()
+		mouse_event.button_index = wanted
+		InputMap.action_add_event(action_name, mouse_event)
+
 	for action_name: String in ACTIONS:
 		if not InputMap.has_action(action_name):
 			InputMap.add_action(action_name, 0.2)

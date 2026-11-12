@@ -2,9 +2,11 @@
 
 A night-driving **truck simulator** for PC, built in **Godot 4.7** (Forward+).
 
-> Status: **playable baseline.** You can drive a truck down a lit night road with a working
-> engine, automatic gearbox, brakes, steering, headlights and a chase camera. There is no
-> traffic, cargo, missions or save system yet.
+> Status: **playable baseline.** You can drive a truck down a lit road with a working
+> engine, automatic gearbox, brakes, steering, headlights, a chase camera and a day/night
+> cycle. There is no traffic, cargo, missions or save system yet.
+
+[![verify](https://github.com/abbasTtBoy1235/Roadverse-Godot/actions/workflows/verify.yml/badge.svg)](https://github.com/abbasTtBoy1235/Roadverse-Godot/actions/workflows/verify.yml)
 
 Everything in this repository is generated from code and primitives — no imported models,
 textures or audio — so a fresh clone runs immediately.
@@ -55,12 +57,18 @@ That runs three steps headlessly:
 |---|---|
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
+| `tests/test_day_cycle.gd` | day/night model — 20 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
+
+**49 checks total.** The same suite runs on every push in GitHub Actions
+(`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
+— no licence, no secrets, no containers.
 
 Raw commands, if you prefer:
 
 ```bash
 godot --headless --path . --script res://tests/test_gearbox.gd
+godot --headless --path . --script res://tests/test_day_cycle.gd
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
@@ -79,6 +87,21 @@ throttle via `Input.action_press`, and asserts that the truck:
 
 ---
 
+## Day / night cycle
+
+`TimeOfDay` drives the sun, moon, ambient light and fog from `DayCycle`, a pure model
+(hour 0..24 in, light parameters out) that is unit tested.
+
+- Default: starts at **21:00**, one full day takes **15 real minutes** (`day_length_seconds = 900`)
+- Set `enabled = false` on the `TimeOfDay` node for a permanently frozen night
+- The HUD shows the in-game clock next to the gear and RPM
+
+Because it is pure, the interesting parts are verifiable without a renderer: sun elevation
+(+90° at noon, −90° at midnight, 0° at sunrise/sunset), energy swaps between sun and moon,
+no discontinuity across midnight, and night ambient brightness below daytime.
+
+---
+
 ## Project layout
 
 ```
@@ -93,6 +116,8 @@ scripts/
   vehicle/truck_controller.gd  engine curve + gearbox -> VehicleBody3D
   vehicle/truck_lights.gd  headlights / brake lights by group
   world/road_builder.gd    procedural asphalt, lane markings, street lamps
+  world/day_cycle.gd       pure day/night model (no engine dependency)
+  world/time_of_day.gd     applies DayCycle to sun, moon, ambient and fog
   camera/chase_camera.gd   chase / close / cockpit
   ui/hud.gd                speed, gear, rpm, light state
 tests/
@@ -137,9 +162,7 @@ All four would have shipped invisibly in a code-only review.
       fog and light intensities are unverified by tests
 - [ ] No engine / wind / tyre audio
 - [ ] No traffic, no cargo, no missions, no save system
-- [ ] No day/night cycle — the scene is permanently night
 - [ ] Steering has no wheel visual feedback (wheels don't spin visually yet)
-- [ ] No CI; `tools/verify.sh` is meant to be wired into GitHub Actions
 - [ ] Truck is 4-wheeled; no trailer articulation yet
 
 ## License

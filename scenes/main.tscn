@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/core/game.gd" id="1_game"]
 [ext_resource type="PackedScene" path="res://scenes/truck.tscn" id="2_truck"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/world/weather.gd" id="9_weather"]
 [ext_resource type="Script" path="res://scripts/gameplay/mission.gd" id="10_mission"]
 [ext_resource type="Script" path="res://scripts/ui/results_panel.gd" id="12_results"]
+[ext_resource type="Script" path="res://scripts/world/pedestrians.gd" id="13_peds"]
 
 [sub_resource type="Environment" id="Env_night"]
 background_mode = 1
@@ -102,6 +103,10 @@ script = ExtResource("7_pause")
 script = ExtResource("9_weather")
 road_path = NodePath("../Road")
 truck_path = NodePath("../Truck")
+
+[node name="Pedestrians" type="Node3D" parent="."]
+script = ExtResource("13_peds")
+road_path = NodePath("../Road")
 
 [node name="Mission" type="Node" parent="."]
 script = ExtResource("10_mission")

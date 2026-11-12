@@ -57,10 +57,24 @@ func _apply() -> void:
 		_moon.light_energy = DayCycle.moon_energy(hour)
 		_moon.visible = DayCycle.moon_energy(hour) > 0.01
 
+	if _moon != null:
+		_moon.rotation_degrees = Vector3(DayCycle.sun_pitch_degrees(hour) + 180.0, 35.0, 0.0)
+
 	if _environment != null:
+		_environment.background_color = DayCycle.sky_color(hour)
 		_environment.ambient_light_energy = DayCycle.ambient_energy(hour)
 		_environment.ambient_light_color = DayCycle.ambient_color(hour)
 		_environment.fog_light_color = DayCycle.fog_color(hour)
+		_environment.fog_density = DayCycle.fog_density(hour)
+		_environment.glow_intensity = DayCycle.glow_intensity(hour)
+
+	# Street lamps, city windows, beacons and NPC headlights all follow the
+	# same dimmer, so dawn actually looks like dawn everywhere at once.
+	var night := DayCycle.night_factor(hour)
+
+	for node in get_tree().get_nodes_in_group("rv_time_aware"):
+		if node.has_method("apply_time_of_day"):
+			node.call("apply_time_of_day", night)
 
 
 ## 0..24, for the HUD.

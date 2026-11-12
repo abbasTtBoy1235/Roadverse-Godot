@@ -27,6 +27,8 @@ var _elapsed := 0.0
 var _phase := 0
 var _spin_before := 0.0
 var _traffic_before: Array[float] = []
+var _peds: Node3D
+var _peds_before: Array[Vector3] = []
 var _failures := 0
 
 
@@ -46,6 +48,7 @@ func _ready() -> void:
 	_wheels = _truck.get_node("WheelVisuals") as WheelVisuals
 	_audio = _truck.get_node("EngineAudio") as EngineAudio
 	_traffic = _game.get_node("Traffic") as Node3D
+	_peds = _game.get_node_or_null("Pedestrians") as Node3D
 	_weather = _game.get_node("Weather") as Node3D
 	_noise = _truck.get_node("RoadNoise") as Node
 	_road = _game.get_node("Road") as Node3D
@@ -63,6 +66,19 @@ func _ready() -> void:
 	_check(_wheels != null, "wheel visuals found")
 	_check(_audio != null, "engine audio found")
 	_check(_traffic != null, "traffic found")
+
+	if _peds != null:
+		_check(int(_peds.call("pedestrian_count_live")) >= 24, "pedestrian NPCs are out walking (%d)" % int(_peds.call("pedestrian_count_live")))
+		_peds_before = _peds.call("pedestrian_positions")
+
+		var positions_finite := true
+		for position in _peds_before:
+			if not (is_finite(position.x) and is_finite(position.y) and is_finite(position.z)):
+				positions_finite = false
+		_check(positions_finite, "pedestrian positions are finite")
+
+	if _road != null:
+		_check(float(_road.get("lamp_level")) > 0.5, "street lamps follow the night (level %.2f)" % float(_road.get("lamp_level")))
 	_check(_weather != null, "weather found")
 	_check(_noise != null, "road noise found")
 	_check(_road != null, "road found")
@@ -156,6 +172,16 @@ func _check_drive() -> void:
 			if absf(after[i] - _traffic_before[i]) > 0.5:
 				moved += 1
 		_check(moved > 0, "traffic cars move along the road (%d of %d moved)" % [moved, after.size()])
+
+	if _peds != null and not _peds_before.is_empty():
+		var after_positions: Array[Vector3] = _peds.call("pedestrian_positions")
+		var walked := 0
+
+		for i in mini(after_positions.size(), _peds_before.size()):
+			if after_positions[i].distance_to(_peds_before[i]) > 0.3:
+				walked += 1
+
+		_check(walked > after_positions.size() / 2, "pedestrians actually walk (%d of %d moved)" % [walked, after_positions.size()])
 
 	var speed := _truck.speed_kph()
 	_check(speed > 8.0, "truck is actually moving (%.0f km/h)" % speed)

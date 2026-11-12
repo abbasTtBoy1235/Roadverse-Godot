@@ -80,6 +80,13 @@ var beacon_count := 0
 ## How many blocks and lit windows the city got. Test hooks.
 var city_block_count := 0
 var city_window_count := 0
+var city_street_count := 0
+## Current lamp dimmer, 0 by day and 1 at night. Test hook.
+var lamp_level := 1.0
+
+var _lamp_lights: Array[OmniLight3D] = []
+var _lamp_base_energy: Array[float] = []
+var _window_mat: StandardMaterial3D
 
 var _beacon_material: StandardMaterial3D
 
@@ -90,6 +97,7 @@ func _ready() -> void:
 
 ## Generates everything. Public so tests can build without the scene tree.
 func build() -> void:
+	add_to_group("rv_time_aware")
 	if _built:
 		return
 	_built = true
@@ -373,6 +381,28 @@ func _build_guardrails() -> void:
 
 
 ## 0 = dry tarmac, 1 = soaked. Rain drives this.
+## TimeOfDay calls this every frame: street lamps, lamp glass, city windows,
+## the skyline glow and the tower beacons all follow the same dimmer.
+func apply_time_of_day(night_factor: float) -> void:
+	lamp_level = clampf(night_factor, 0.0, 1.0)
+
+	for i in _lamp_lights.size():
+		_lamp_lights[i].visible = lamp_level > 0.03
+		_lamp_lights[i].light_energy = _lamp_base_energy[i] * lamp_level
+
+	if _lamp_glass != null:
+		_lamp_glass.emission_energy_multiplier = lerpf(0.12, 4.5, lamp_level)
+
+	if _window_mat != null:
+		_window_mat.emission_energy_multiplier = lerpf(0.1, 2.4, lamp_level)
+
+	if _city_glow != null:
+		_city_glow.emission_energy_multiplier = lerpf(0.25, 1.4, lamp_level)
+
+	if _beacon_material != null:
+		_beacon_material.emission_energy_multiplier = lerpf(0.0, 3.0, lamp_level)
+
+
 func set_wetness(amount: float) -> void:
 	_wetness = clampf(amount, 0.0, 1.0)
 
@@ -487,6 +517,8 @@ func _build_lamps() -> void:
 		light.omni_range = 34.0
 		light.shadow_enabled = false
 		add_child(light)
+		_lamp_lights.append(light)
+		_lamp_base_energy.append(light.light_energy)
 
 		index += 1
 		offset += lamp_spacing
@@ -859,14 +891,14 @@ func _build_city_glow() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value + 7
 
-	# Approach districts: both sides of the road for its second half.
-	for i in 130:
-		var distance := rng.randf_range(_baked_length * 0.48, _baked_length)
+	# Approach districts: both sides of the road from a third of the way in.
+	for i in 190:
+		var distance := rng.randf_range(_baked_length * 0.35, _baked_length)
 		var side := -1.0 if i % 2 == 0 else 1.0
-		var lateral := side * rng.randf_range(58.0, 300.0)
-		var width := rng.randf_range(10.0, 30.0)
-		var height := rng.randf_range(12.0, 62.0)
-		var depth := rng.randf_range(10.0, 30.0)
+		var lateral := side * rng.randf_range(55.0, 360.0)
+		var width := rng.randf_range(10.0, 34.0)
+		var height := rng.randf_range(12.0, 78.0)
+		var depth := rng.randf_range(10.0, 34.0)
 
 		var position := _place(distance, lateral, height * 0.5)
 		var basis := Basis(Vector3.UP, rng.randf_range(-0.25, 0.25)).scaled(Vector3(width, height, depth))
@@ -878,12 +910,12 @@ func _build_city_glow() -> void:
 	var end_direction := _tangent(_baked_length)
 	var end_right := _right(_baked_length)
 
-	for i in 70:
-		var lateral := rng.randf_range(-340.0, 340.0)
-		var width := rng.randf_range(10.0, 34.0)
-		var height := rng.randf_range(14.0, 78.0)
-		var depth := rng.randf_range(10.0, 34.0)
-		var ahead := rng.randf_range(-20.0, 240.0)
+	for i in 120:
+		var lateral := rng.randf_range(-430.0, 430.0)
+		var width := rng.randf_range(10.0, 36.0)
+		var height := rng.randf_range(14.0, 96.0)
+		var depth := rng.randf_range(10.0, 36.0)
+		var ahead := rng.randf_range(-30.0, 330.0)
 
 		var position := end_point + end_direction * ahead + end_right * lateral + Vector3.UP * (height * 0.5)
 		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(width, height, depth))
@@ -892,7 +924,33 @@ func _build_city_glow() -> void:
 
 	city_block_count = transforms.size()
 	_add_multimesh("CityBlocks", mesh, _city_glow, transforms)
+	_build_city_streets(end_point, end_direction, end_right)
 	_build_city_windows(transforms, road_points, rng)
+
+
+## A street grid under the end-of-road city, so the blocks sit in streets
+## instead of floating on the plain. Dark ribbons just above the ground.
+func _build_city_streets(end_point: Vector3, direction: Vector3, right: Vector3) -> void:
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(1.0, 1.0, 1.0)
+
+	var material := _mat(Color(0.045, 0.05, 0.065), 0.95)
+	var transforms: Array[Transform3D] = []
+
+	# Avenues running away from the road's end.
+	for k in range(-3, 4):
+		var centre := end_point + right * (float(k) * 58.0) + direction * 130.0 + Vector3.UP * 0.04
+		var basis := Basis(right, Vector3.UP, direction).scaled(Vector3(10.0, 0.08, 300.0))
+		transforms.append(Transform3D(basis, centre))
+
+	# Cross streets.
+	for k in range(0, 7):
+		var centre := end_point + direction * (float(k) * 48.0 - 10.0) + Vector3.UP * 0.04
+		var basis := Basis(right, Vector3.UP, direction).scaled(Vector3(430.0, 0.08, 10.0))
+		transforms.append(Transform3D(basis, centre))
+
+	city_street_count = transforms.size()
+	_add_multimesh("CityStreets", mesh, material, transforms)
 
 
 ## Lit windows scattered over the faces of the skyline, plus blinking beacons on
@@ -903,7 +961,7 @@ func _build_city_windows(blocks: Array[Transform3D], road_points: Array[Vector3]
 
 	var transforms: Array[Transform3D] = []
 
-	for i in 2600:
+	for i in 4200:
 		if blocks.is_empty():
 			break
 
@@ -960,7 +1018,7 @@ func _build_city_windows(blocks: Array[Transform3D], road_points: Array[Vector3]
 
 	var beacon_transforms: Array[Transform3D] = []
 
-	for i in mini(10, tallest.size()):
+	for i in mini(12, tallest.size()):
 		var block: Transform3D = tallest[i]
 		var top: Vector3 = block.origin + Vector3.UP * (block.basis.get_scale().y * 0.5 + 2.0)
 		beacon_transforms.append(Transform3D(Basis(), top))
@@ -972,6 +1030,7 @@ func _build_city_windows(blocks: Array[Transform3D], road_points: Array[Vector3]
 
 func _window_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
+	_window_mat = material
 	material.albedo_color = Color(1.0, 0.88, 0.62)
 	material.emission_enabled = true
 	material.emission = Color(1.0, 0.86, 0.55)

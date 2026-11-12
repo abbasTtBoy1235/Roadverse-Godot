@@ -7,8 +7,8 @@ extends Node3D
 ##
 ## Purely visual — no collision — so the truck can always be driven through them.
 
-@export var car_count := 7
-@export var forward_car_count := 4
+@export var car_count := 10
+@export var forward_car_count := 7
 @export var road_path: NodePath
 @export var lane_offset := 3.3
 @export var oncoming_speed_min := 15.0
@@ -34,6 +34,16 @@ var _lanes: Array[float] = []
 var _directions: Array[float] = []
 var _brake_materials: Array[StandardMaterial3D] = []
 var _braking: Array[bool] = []
+var _lengths: Array[float] = []
+var _wheel_pivots: Array = []
+var _headlights: Array[OmniLight3D] = []
+var _lamp_materials: Array[StandardMaterial3D] = []
+
+const BODY_COLORS := [
+	Color(0.55, 0.14, 0.12), Color(0.13, 0.3, 0.6), Color(0.8, 0.82, 0.85),
+	Color(0.08, 0.09, 0.11), Color(0.9, 0.88, 0.84), Color(0.85, 0.5, 0.12),
+	Color(0.12, 0.45, 0.45), Color(0.45, 0.16, 0.4),
+]
 
 
 ## Keeps a car's position inside the road, looping at the ends.
@@ -59,6 +69,7 @@ static func follow_speed(cruise: float, gap: float, safe: float) -> float:
 
 
 func _ready() -> void:
+	add_to_group("rv_time_aware")
 	_road = get_node_or_null(road_path) as Node3D
 
 	if _road == null or not ("curve" in _road):
@@ -107,27 +118,85 @@ func _add_car(rng: RandomNumberGenerator, direction: float, lane: float, cruise:
 
 
 func _build_car(index: int) -> Node3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + index * 131
+
+	# Vehicle variety: mostly cars, every fourth a taller van or box truck.
+	var is_van := index % 4 == 3
+	var vehicle_length := 5.4 if is_van else rng.randf_range(4.0, 4.7)
+	var body_height := 1.95 if is_van else 1.05
+	_lengths.append(vehicle_length)
+
 	var car := Node3D.new()
 	car.name = "Car%d" % index
 
+	var paint := StandardMaterial3D.new()
+	paint.albedo_color = BODY_COLORS[rng.randi_range(0, BODY_COLORS.size() - 1)]
+	paint.metallic = 0.55
+	paint.roughness = 0.38
+
 	var body_mesh := BoxMesh.new()
-	body_mesh.size = Vector3(1.9, 1.5, car_length)
+	body_mesh.size = Vector3(1.9, body_height, vehicle_length)
 
 	var body := MeshInstance3D.new()
 	body.mesh = body_mesh
-	body.material_override = _body_material()
-	body.position = Vector3(0.0, 0.9, 0.0)
+	body.material_override = paint
+	body.position = Vector3(0.0, 0.42 + body_height * 0.5, 0.0)
 	car.add_child(body)
+
+	if not is_van:
+		var glass := StandardMaterial3D.new()
+		glass.albedo_color = Color(0.1, 0.14, 0.19)
+		glass.metallic = 0.7
+		glass.roughness = 0.12
+
+		var cabin_mesh := BoxMesh.new()
+		cabin_mesh.size = Vector3(1.7, 0.55, vehicle_length * 0.45)
+
+		var cabin := MeshInstance3D.new()
+		cabin.mesh = cabin_mesh
+		cabin.material_override = glass
+		cabin.position = Vector3(0.0, 1.72, 0.15)
+		car.add_child(cabin)
+
+	# Wheels on pivots so they can roll with the car's speed.
+	var tyre := StandardMaterial3D.new()
+	tyre.albedo_color = Color(0.03, 0.03, 0.035)
+	tyre.roughness = 1.0
+
+	var wheel_mesh := CylinderMesh.new()
+	wheel_mesh.top_radius = 0.34
+	wheel_mesh.bottom_radius = 0.34
+	wheel_mesh.height = 0.24
+	wheel_mesh.radial_segments = 10
+
+	var pivots: Array[Node3D] = []
+
+	for side: float in [-0.85, 0.85]:
+		for end: float in [-vehicle_length * 0.32, vehicle_length * 0.32]:
+			var pivot := Node3D.new()
+			pivot.position = Vector3(side, 0.34, end)
+			car.add_child(pivot)
+
+			var wheel := MeshInstance3D.new()
+			wheel.mesh = wheel_mesh
+			wheel.material_override = tyre
+			wheel.rotation = Vector3(0.0, 0.0, PI * 0.5)
+			pivot.add_child(wheel)
+			pivots.append(pivot)
+
+	_wheel_pivots.append(pivots)
 
 	var lamp_mesh := BoxMesh.new()
 	lamp_mesh.size = Vector3(0.32, 0.22, 0.08)
 	var lamp_material := _lamp_material()
+	_lamp_materials.append(lamp_material)
 
 	for side: float in [-0.62, 0.62]:
 		var lamp := MeshInstance3D.new()
 		lamp.mesh = lamp_mesh
 		lamp.material_override = lamp_material
-		lamp.position = Vector3(side, 0.75, -car_length * 0.5 + 0.05)
+		lamp.position = Vector3(side, 0.75, -vehicle_length * 0.5 + 0.05)
 		car.add_child(lamp)
 
 	# Rear lamps share one material per car so they can light up when braking.
@@ -145,27 +214,20 @@ func _build_car(index: int) -> Node3D:
 		var brake := MeshInstance3D.new()
 		brake.mesh = brake_mesh
 		brake.material_override = brake_material
-		brake.position = Vector3(side, 0.72, car_length * 0.5 - 0.02)
+		brake.position = Vector3(side, 0.72, vehicle_length * 0.5 - 0.02)
 		car.add_child(brake)
 
 	# One real light per car so the road actually lights up as they approach.
 	var light := OmniLight3D.new()
-	light.position = Vector3(0.0, 0.9, -car_length * 0.5 - 0.3)
+	light.position = Vector3(0.0, 0.9, -vehicle_length * 0.5 - 0.3)
 	light.light_color = Color(1.0, 0.95, 0.85)
 	light.light_energy = 3.0
 	light.omni_range = 22.0
 	light.shadow_enabled = false
 	car.add_child(light)
+	_headlights.append(light)
 
 	return car
-
-
-func _body_material() -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.09, 0.1, 0.12)
-	material.metallic = 0.5
-	material.roughness = 0.4
-	return material
 
 
 func _lamp_material() -> StandardMaterial3D:
@@ -196,6 +258,9 @@ func _physics_process(delta: float) -> void:
 		_distances[i] = wrap_distance(_distances[i] + _directions[i] * _speeds[i] * delta, _length)
 		_bodies[i].transform = _frame(_distances[i], _directions[i], _lanes[i])
 
+		for pivot in _wheel_pivots[i]:
+			(pivot as Node3D).rotation.x -= _speeds[i] * delta / 0.34
+
 
 ## Distance to the nearest car ahead in the same lane and direction.
 func _gap_ahead(index: int) -> float:
@@ -209,7 +274,8 @@ func _gap_ahead(index: int) -> float:
 			continue
 
 		var ahead := wrap_distance((_distances[other] - _distances[index]) * _directions[index], _length)
-		best = minf(best, ahead - car_length)
+		var nose_to_tail := (_lengths[other] + _lengths[index]) * 0.5 if other < _lengths.size() and index < _lengths.size() else car_length
+		best = minf(best, ahead - nose_to_tail)
 
 	return best if best != INF else 9999.0
 
@@ -228,6 +294,18 @@ func _frame(distance: float, direction: float, lane: float) -> Transform3D:
 	var basis := Basis(right, Vector3.UP, -forward)
 
 	return Transform3D(basis, point + right * lane)
+
+
+## TimeOfDay calls this: headlights only earn their keep after dark.
+func apply_time_of_day(night_factor: float) -> void:
+	var level := clampf(night_factor, 0.0, 1.0)
+
+	for light in _headlights:
+		light.visible = level > 0.04
+		light.light_energy = 3.0 * level
+
+	for material in _lamp_materials:
+		material.emission_energy_multiplier = lerpf(0.15, 6.0, level)
 
 
 ## Test hook: distances of the live cars.

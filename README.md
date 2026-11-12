@@ -67,8 +67,8 @@ That runs three steps headlessly:
 |---|---|
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
-| `tests/test_day_cycle.gd` | day/night model — 20 checks |
-| `tests/test_road_geometry.gd` | procedural road and the city — 107 checks |
+| `tests/test_day_cycle.gd` | day/night model — 26 checks |
+| `tests/test_road_geometry.gd` | procedural road and the city — 117 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
 | `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 37 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 7 checks |
@@ -80,7 +80,7 @@ That runs three steps headlessly:
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**379 checks total.** The same suite runs on every push in GitHub Actions
+**399 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -138,9 +138,9 @@ throttle via `Input.action_press`, and asserts that the truck:
 | Overpass | concrete deck with parapets and pillars at 55% of the route |
 | Distant hills | low-poly silhouettes 240–420 m out, no collision |
 | City glow | emissive skyline past the end of the road, picked up by the glow pass |
-| Traffic | seven oncoming cars looping the other lane, each with emissive lamps and one light |
+| Traffic | 17 NPC cars and vans looping both lanes, with spinning wheels, brake lamps and headlights |
 | Barrier | the guardrails are real collision boxes, so the truck bounces off instead of driving through |
-| Skyline | 900 lit windows and six blinking warning beacons on the distant towers |
+| City | 310 blocks alongside and past the road, a street grid, 4,200 lit windows, 12 tower beacons |
 
 Repeated props use `MultiMeshInstance3D`, so ~900 instances cost a handful of draw calls.
 Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for a different
@@ -214,11 +214,16 @@ of the truck itself.
 
 ## Traffic
 
-Eleven cars, two lanes. Seven come at you in the oncoming lane; four crawl along in your lane at
-9–14 m/s, which makes them things to overtake. Each one measures the gap to the car ahead in its
-own lane and settles on `follow_speed(cruise, gap, safe_gap)`: cruise when clear, a proportional
-crawl as it closes in, stopped when the gap is gone. Brake lamps light up while decelerating —
-hard braking, gentle acceleration, the way traffic really moves. They still have no collision.
+Seventeen NPC vehicles, two lanes. Ten come at you in the oncoming lane; seven crawl along in
+your lane at 9–14 m/s, which makes them things to overtake. Cars and vans wear different paint,
+carry glass cabins and roll on spinning wheels. Each one measures the gap to the vehicle ahead
+in its own lane and settles on `follow_speed(cruise, gap, safe_gap)`: cruise when clear, a
+proportional crawl as it closes in, stopped when the gap is gone. Brake lamps light up while
+decelerating — hard braking, gentle acceleration, the way traffic really moves. They still have
+no collision.
+
+**Pedestrians too:** 26 walkers stroll both sidewalks with swinging arms and legs, in both
+directions, wrapping at the ends of the road so the roadside never empties.
 
 ---
 
@@ -279,8 +284,11 @@ truck and camera stays between 5 m and 30 m the whole time; that is the regressi
 
 ## Day / night cycle
 
-`TimeOfDay` drives the sun, moon, ambient light and fog from `DayCycle`, a pure model
-(hour 0..24 in, light parameters out) that is unit tested.
+`TimeOfDay` drives the sun, moon, sky colour, ambient light, fog and bloom from `DayCycle`, a
+pure model (hour 0..24 in, light parameters out) that is unit tested. One `night_factor` dimmer
+is broadcast to everything that glows — street lamps, lamp glass, the 4,200 city windows, the
+skyline, tower beacons and NPC headlights — so dawn and dusk happen everywhere at once: lamps
+fade out as the sky warms orange at sunrise, and the city lights come back on at dusk.
 
 - Default: starts at **21:00**, one full day takes **15 real minutes** (`day_length_seconds = 900`)
 - Set `enabled = false` on the `TimeOfDay` node for a permanently frozen night

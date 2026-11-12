@@ -17,6 +17,7 @@ func _initialize() -> void:
 	_test_continuity_across_midnight()
 	_test_clock_string()
 	_test_night_is_darker_than_day()
+	_test_sky_and_dimmers()
 
 	print("[daycycle] %d checks, %d failures" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -74,6 +75,15 @@ func _test_clock_string() -> void:
 	_check(DayCycle.clock_string(21.5) == "21:30", "21.5 formats as 21:30 (got %s)" % DayCycle.clock_string(21.5))
 	_check(DayCycle.clock_string(0.0) == "00:00", "0.0 formats as 00:00")
 	_check(DayCycle.clock_string(23.99) == "23:59", "23.99 formats as 23:59")
+
+
+func _test_sky_and_dimmers() -> void:
+	_check(_near(DayCycle.night_factor(0.0), 1.0), "night factor is 1 at midnight")
+	_check(_near(DayCycle.night_factor(12.0), 0.0), "night factor is 0 at noon")
+	_check(DayCycle.sky_color(13.0).v > DayCycle.sky_color(1.0).v, "the daytime sky is brighter than the night sky")
+	_check(DayCycle.sky_color(6.0).r > DayCycle.sky_color(6.0).b, "the sunrise sky warms up (r %.2f > b %.2f)" % [DayCycle.sky_color(6.0).r, DayCycle.sky_color(6.0).b])
+	_check(DayCycle.glow_intensity(0.0) > DayCycle.glow_intensity(12.0), "bloom is stronger at night")
+	_check(DayCycle.fog_density(0.0) > DayCycle.fog_density(12.0), "fog is thicker at night")
 
 
 func _test_night_is_darker_than_day() -> void:

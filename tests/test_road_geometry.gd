@@ -12,7 +12,7 @@ const EXPECTED_MESHES := [
 const EXPECTED_MULTIMESHES := [
 	"GuardrailPosts", "DelineatorPosts", "LampPoles", "LampArms", "LampBulbs",
 	"TreeTrunks", "TreeCanopies", "Rocks", "PowerPoles", "DistantHills",
-	"RoadStuds", "KmMarkerPosts", "KmMarkerPlates", "FencePosts", "Shrubs", "CityBlocks",
+	"RoadStuds", "KmMarkerPosts", "KmMarkerPlates", "FencePosts", "Shrubs", "CityBlocks", "CityStreets", "CityWindows",
 ]
 
 var _checks := 0
@@ -65,9 +65,20 @@ func _check(condition: bool, message: String) -> void:
 func _check_city(road: Node3D) -> void:
 	# The city used to be 70 blocks past the end of the road. It now runs
 	# alongside the second half of the route as well as beyond it.
-	_check(road.city_block_count >= 180, "the city has real bulk (%d blocks)" % road.city_block_count)
-	_check(road.city_window_count >= 2000, "the city windows are dense (%d)" % road.city_window_count)
-	_check(road.beacon_count >= 10, "the tall towers carry beacons (%d)" % road.beacon_count)
+	_check(road.city_block_count >= 300, "the city has real bulk (%d blocks)" % road.city_block_count)
+	_check(road.city_window_count >= 4000, "the city windows are dense (%d)" % road.city_window_count)
+	_check(road.beacon_count >= 12, "the tall towers carry beacons (%d)" % road.beacon_count)
+
+	_check(road.city_street_count >= 12, "the city has a street grid (%d streets)" % road.city_street_count)
+
+	var streets := road.get_node_or_null("CityStreets") as MultiMeshInstance3D
+	_check(streets != null and streets.multimesh.instance_count == road.city_street_count, "street grid multimesh matches")
+
+	# Street lamps must be dimmable by the day/night cycle.
+	road.apply_time_of_day(0.0)
+	_check(road.lamp_level < 0.01, "lamps go out by day")
+	road.apply_time_of_day(1.0)
+	_check(road.lamp_level > 0.99, "lamps come on at night")
 
 	var blocks := road.get_node_or_null("CityBlocks") as MultiMeshInstance3D
 	_check(blocks != null and blocks.multimesh.instance_count == road.city_block_count, "city multimesh matches the block count")

@@ -1,0 +1,182 @@
+class_name Pedestrians
+extends Node3D
+## Pedestrian NPCs strolling along both sides of the road.
+##
+## Purely visual, like the traffic: each walker follows the road curve on a
+## sidewalk offset, legs and arms swinging with a walk cycle and a slight bob.
+## They wrap at the ends of the road, so the roadside never empties.
+
+@export var pedestrian_count := 26
+@export var road_path: NodePath
+@export var sidewalk_offset_min := 9.6
+@export var sidewalk_offset_max := 13.5
+@export var walk_speed_min := 0.7
+@export var walk_speed_max := 1.7
+@export var seed_value := 9021
+
+var _curve: Curve3D
+var _length := 0.0
+
+var _bodies: Array[Node3D] = []
+var _distances: Array[float] = []
+var _speeds: Array[float] = []
+var _directions: Array[float] = []
+var _laterals: Array[float] = []
+var _phases: Array[float] = []
+var _left_legs: Array[Node3D] = []
+var _right_legs: Array[Node3D] = []
+var _left_arms: Array[Node3D] = []
+var _right_arms: Array[Node3D] = []
+
+const COAT_COLORS := [
+	Color(0.55, 0.16, 0.14), Color(0.14, 0.28, 0.55), Color(0.85, 0.6, 0.15),
+	Color(0.16, 0.45, 0.3), Color(0.75, 0.75, 0.78), Color(0.4, 0.2, 0.5),
+	Color(0.9, 0.45, 0.2), Color(0.2, 0.2, 0.24),
+]
+
+
+func _ready() -> void:
+	var road := get_node_or_null(road_path) as Node3D
+
+	if road == null or not ("curve" in road):
+		push_warning("Pedestrians: road_path must point at a RoadBuilder.")
+		return
+
+	_curve = road.get("curve") as Curve3D
+
+	if _curve == null:
+		push_warning("Pedestrians: the road has no curve yet.")
+		return
+
+	_length = _curve.get_baked_length()
+	_spawn_all()
+
+
+func _spawn_all() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+
+	var torso_mesh := BoxMesh.new()
+	torso_mesh.size = Vector3(0.44, 0.62, 0.26)
+
+	var head_mesh := BoxMesh.new()
+	head_mesh.size = Vector3(0.27, 0.3, 0.27)
+
+	var leg_mesh := BoxMesh.new()
+	leg_mesh.size = Vector3(0.16, 0.58, 0.19)
+
+	var arm_mesh := BoxMesh.new()
+	arm_mesh.size = Vector3(0.13, 0.52, 0.16)
+
+	var skin := StandardMaterial3D.new()
+	skin.albedo_color = Color(0.85, 0.65, 0.5)
+	skin.roughness = 0.8
+
+	var trousers := StandardMaterial3D.new()
+	trousers.albedo_color = Color(0.12, 0.12, 0.16)
+	trousers.roughness = 0.95
+
+	for i in pedestrian_count:
+		var body := Node3D.new()
+		body.name = "Pedestrian%d" % i
+		add_child(body)
+
+		var coat := StandardMaterial3D.new()
+		coat.albedo_color = COAT_COLORS[rng.randi_range(0, COAT_COLORS.size() - 1)]
+		coat.roughness = 0.85
+
+		var torso := MeshInstance3D.new()
+		torso.mesh = torso_mesh
+		torso.material_override = coat
+		torso.position = Vector3(0.0, 1.12, 0.0)
+		body.add_child(torso)
+
+		var head := MeshInstance3D.new()
+		head.mesh = head_mesh
+		head.material_override = skin
+		head.position = Vector3(0.0, 1.6, 0.0)
+		body.add_child(head)
+
+		var left_leg := _limb(body, leg_mesh, trousers, Vector3(-0.12, 0.84, 0.0))
+		var right_leg := _limb(body, leg_mesh, trousers, Vector3(0.12, 0.84, 0.0))
+		var left_arm := _limb(body, arm_mesh, coat, Vector3(-0.3, 1.38, 0.0))
+		var right_arm := _limb(body, arm_mesh, coat, Vector3(0.3, 1.38, 0.0))
+
+		_bodies.append(body)
+		_left_legs.append(left_leg)
+		_right_legs.append(right_leg)
+		_left_arms.append(left_arm)
+		_right_arms.append(right_arm)
+
+		var direction := 1.0 if i % 2 == 0 else -1.0
+		_directions.append(direction)
+		_laterals.append((1.0 if i % 4 < 2 else -1.0) * rng.randf_range(sidewalk_offset_min, sidewalk_offset_max))
+		_speeds.append(rng.randf_range(walk_speed_min, walk_speed_max))
+		_distances.append(fposmod(_length * float(i) / float(maxi(1, pedestrian_count)) + rng.randf_range(-6.0, 6.0), _length))
+		_phases.append(rng.randf_range(0.0, TAU))
+
+		body.transform = _frame(_distances[i], direction, _laterals[i], 0.0)
+
+
+## A swinging limb: a pivot at the joint, the mesh hanging below it.
+func _limb(parent: Node3D, mesh: Mesh, material: Material, joint: Vector3) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.position = joint
+	parent.add_child(pivot)
+
+	var part := MeshInstance3D.new()
+	part.mesh = mesh
+	part.material_override = material
+	part.position = Vector3(0.0, -mesh.get_aabb().size.y * 0.5, 0.0)
+	pivot.add_child(part)
+
+	return pivot
+
+
+func _physics_process(delta: float) -> void:
+	if _curve == null:
+		return
+
+	for i in _bodies.size():
+		_distances[i] = fposmod(_distances[i] + _directions[i] * _speeds[i] * delta, _length)
+		_phases[i] = wrapf(_phases[i] + _speeds[i] * delta * 3.4, -TAU, TAU)
+
+		var swing := sin(_phases[i]) * 0.55
+		_left_legs[i].rotation.x = swing
+		_right_legs[i].rotation.x = -swing
+		_left_arms[i].rotation.x = -swing * 0.7
+		_right_arms[i].rotation.x = swing * 0.7
+
+		var bob := absf(sin(_phases[i])) * 0.045
+		_bodies[i].transform = _frame(_distances[i], _directions[i], _laterals[i], bob)
+
+
+## Position and facing on the road for a walker heading `direction`.
+func _frame(distance: float, direction: float, lateral: float, bob: float) -> Transform3D:
+	var point := _curve.sample_baked(clampf(distance, 0.0, _length))
+	var ahead := _curve.sample_baked(clampf(distance + direction, 0.0, _length))
+	var behind := _curve.sample_baked(clampf(distance - direction, 0.0, _length))
+
+	var forward := (ahead - behind).normalized()
+	if forward.length() < 0.001:
+		forward = Vector3.FORWARD
+
+	var right := forward.cross(Vector3.UP).normalized()
+	var basis := Basis(right, Vector3.UP, -forward)
+
+	return Transform3D(basis, point + right * lateral + Vector3.UP * bob)
+
+
+## Test hook: how many walkers are live.
+func pedestrian_count_live() -> int:
+	return _bodies.size()
+
+
+## Test hook: world positions of every walker.
+func pedestrian_positions() -> Array[Vector3]:
+	var out: Array[Vector3] = []
+
+	for body in _bodies:
+		out.append(body.global_position)
+
+	return out

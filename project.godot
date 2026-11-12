@@ -7,13 +7,14 @@ config_version=5
 
 config/name="Roadverse"
 config/description="Night truck simulator for PC."
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
 InputSetup="*res://scripts/core/input_setup.gd"
+Settings="*res://scripts/core/settings.gd"
 
 [display]
 

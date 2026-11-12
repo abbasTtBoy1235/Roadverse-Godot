@@ -1,0 +1,71 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/game.gd" id="1_game"]
+[ext_resource type="PackedScene" path="res://scenes/truck.tscn" id="2_truck"]
+[ext_resource type="Script" path="res://scripts/world/road_builder.gd" id="3_road"]
+[ext_resource type="Script" path="res://scripts/camera/chase_camera.gd" id="4_camera"]
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="5_hud"]
+
+[sub_resource type="Environment" id="Env_night"]
+background_mode = 1
+background_color = Color(0.015, 0.02, 0.04, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.2, 0.26, 0.4, 1)
+ambient_light_energy = 0.4
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.55
+fog_enabled = true
+fog_light_color = Color(0.05, 0.07, 0.12, 1)
+fog_light_energy = 0.6
+fog_density = 0.008
+
+[sub_resource type="StandardMaterial3D" id="Mat_ground"]
+albedo_color = Color(0.05, 0.06, 0.05, 1)
+roughness = 1.0
+
+[sub_resource type="PlaneMesh" id="Mesh_ground"]
+size = Vector2(800, 800)
+
+[sub_resource type="BoxShape3D" id="Shape_ground"]
+size = Vector3(800, 1, 800)
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_game")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_night")
+
+[node name="Moon" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.95, 0.6, 0)
+light_color = Color(0.55, 0.65, 0.9, 1)
+light_energy = 0.18
+shadow_enabled = true
+
+[node name="Ground" type="StaticBody3D" parent="."]
+
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("Mesh_ground")
+material_override = SubResource("Mat_ground")
+
+[node name="Shape" type="CollisionShape3D" parent="Ground"]
+position = Vector3(0, -0.5, 0)
+shape = SubResource("Shape_ground")
+
+[node name="Road" type="Node3D" parent="."]
+script = ExtResource("3_road")
+
+[node name="Truck" parent="." instance=ExtResource("2_truck")]
+position = Vector3(0, 1.2, 0)
+
+[node name="ChaseCamera" type="Camera3D" parent="."]
+position = Vector3(0, 5, 12)
+fov = 68.0
+near = 0.1
+far = 900.0
+script = ExtResource("4_camera")
+target_path = NodePath("../Truck")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")
+truck_path = NodePath("../Truck")

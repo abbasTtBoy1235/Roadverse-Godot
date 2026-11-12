@@ -307,8 +307,8 @@ func _check_delivery() -> void:
 	_check_model_socket()
 
 
-## The truck can take a real GLB without touching physics: feed it a fake model
-## with named wheels and check the swap happened exactly once.
+## With models/truck.glb in the repo the real mesh has to be fitted and driving;
+## without it the procedural truck has to be left alone. Both are exercised.
 func _check_model_socket() -> void:
 	var socket := _truck.get_node_or_null("TruckModel") as TruckModel
 	_check(socket != null, "the truck has a model socket")
@@ -316,30 +316,46 @@ func _check_model_socket() -> void:
 	if socket == null:
 		return
 
-	_check(not socket.has_model, "with no file on disk the procedural truck is used")
+	var visuals := _truck.get_node_or_null("WheelVisuals") as WheelVisuals
 
-	var fake := Node3D.new()
-	fake.name = "FakeTruckModel"
+	if not TruckModel.model_exists():
+		_check(not socket.has_model, "with no file on disk the procedural truck is used")
+		_check(_truck.get_node("Body").visible, "the placeholder body stays visible")
 
-	for wheel_name in ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"]:
-		var wheel := Node3D.new()
-		wheel.name = wheel_name
-		fake.add_child(wheel)
+		var fake := Node3D.new()
+		fake.name = "FakeTruckModel"
 
-	_check(socket.apply_model(fake), "a model can be dropped in at runtime")
-	_check(socket.has_model, "the socket reports the model is in use")
-	_check(socket.adopted_wheel_count() == 4, "all four model wheels were adopted (%d)" % socket.adopted_wheel_count())
+		for wheel_name in ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"]:
+			var wheel := Node3D.new()
+			wheel.name = wheel_name
+			var mesh := MeshInstance3D.new()
+			mesh.name = "mesh_" + wheel_name
+			mesh.mesh = BoxMesh.new()
+			wheel.add_child(mesh)
+			fake.add_child(wheel)
 
-	for placeholder in ["Body", "Cab"]:
-		var node := _truck.get_node_or_null(placeholder) as Node3D
+		_check(socket.apply_model(fake), "a model can be dropped in at runtime")
+		_check(socket.adopted_wheel_count() >= 4, "the model's wheels were adopted (%d)" % socket.adopted_wheel_count())
+		return
 
-		if node != null:
-			_check(not node.visible, "the %s placeholder is hidden" % placeholder.to_lower())
+	_check(socket.has_model, "the GLB was loaded and fitted")
+	_check(not (_truck.get_node("Body") as Node3D).visible, "the placeholder body is hidden")
+	_check(not (_truck.get_node("Cab") as Node3D).visible, "the placeholder cab is hidden")
 
-	var spin := _truck.get_node_or_null("WheelFL/Spin") as Node3D
+	_check(socket.model_width > 2.0 and socket.model_width < 3.0,
+		"fitted to a real width (%.2f m)" % socket.model_width)
+	_check(socket.model_length > 8.0, "fitted to a truck length (%.2f m)" % socket.model_length)
+	_check(socket.model_height > 2.0, "fitted to a truck height (%.2f m)" % socket.model_height)
 
-	if spin != null:
-		_check(spin.get_node_or_null("wheel_fl") != null, "the model's front-left wheel sits on the spin pivot")
+	if visuals != null:
+		_check(visuals.model_wheel_count() >= 4, "the model's wheels are driven (%d)" % visuals.model_wheel_count())
+
+	_check(not (_truck.get_node("WheelFL/Spin/Visual") as Node3D).visible, "the primitive wheels are hidden")
+
+	var trailer := _game.get_node_or_null("Trailer") as Trailer
+
+	if trailer != null:
+		_check(trailer.hitch_offset.z > 4.4, "the trailer hangs off the real rear end (z %.2f)" % trailer.hitch_offset.z)
 
 
 func _finish() -> void:

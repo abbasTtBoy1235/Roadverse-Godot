@@ -31,6 +31,11 @@ func _ready() -> void:
 		push_warning("Trailer: no truck to follow.")
 		return
 
+	var socket := _truck.get_node_or_null("TruckModel") as TruckModel
+
+	if socket != null and socket.has_model and socket.model_rear_z > 1.0:
+		hitch_offset.z = socket.model_rear_z + 0.15
+
 	trailer_yaw = _truck.global_rotation.y
 	_last_yaw = trailer_yaw
 	_build()

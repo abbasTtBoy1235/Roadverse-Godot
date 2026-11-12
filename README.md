@@ -76,11 +76,11 @@ That runs three steps headlessly:
 | `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
 | `tests/test_career.gd` | routes, pay, ranks, fuel economy and camera shake maths — 35 checks |
-| `tests/drive_state.tscn` | wheels, audio, traffic, trailer, rain, barriers, props, a full delivery, the payout, the fuel burn and the model socket — 64 checks |
+| `tests/drive_state.tscn` | wheels, audio, traffic, trailer, rain, barriers, props, a full delivery, the payout, the fuel burn and the fitted truck model |
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**364 checks total.** The same suite runs on every push in GitHub Actions
+**367 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -147,6 +147,15 @@ Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for 
 layout; the geometry test asserts that the same seed reproduces the same layout.
 
 ---
+
+## The truck
+
+The truck is a **real GLB now**: `models/truck.glb` (Sketchfab export, 36k triangles) is fitted
+automatically — scaled to 2.5 m wide, turned to face -Z, dropped on its wheels, the four
+`VehicleWheel3D` anchors kept exactly where the handling was tuned for, the model's own eight
+wheels hung on pivots that roll with road speed and steer up front, the chassis collider resized to
+the mesh, the lamps moved to the real nose and tail, and the trailer hitch pushed back to the real
+rear end. Delete the file and the procedural truck comes back, unchanged.
 
 ## Real art (optional)
 

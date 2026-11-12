@@ -7,13 +7,18 @@ extends Node3D
 ## (spin_angle, steering, 0): Godot's Euler order YXZ applies the yaw first, so
 ## steering wraps around the spin instead of the other way round.
 
+var _truck: VehicleBody3D
 var _wheels: Array[VehicleWheel3D] = []
 var _spins: Array[Node3D] = []
 var _angles: Array[float] = []
 
+## Extra wheels that came from a real model: {node, steers, angle}.
+var _extra: Array[Dictionary] = []
+
 
 func _ready() -> void:
 	var truck := get_parent()
+	_truck = truck as VehicleBody3D
 
 	if truck == null:
 		return
@@ -27,7 +32,47 @@ func _ready() -> void:
 		_angles.append(0.0)
 
 
+## Called by TruckModel for every wheel it found on the mesh. The pivot spins on
+## its own axle; only the front ones take the steering angle.
+func register_model_wheel(pivot: Node3D, steers: bool) -> void:
+	if pivot == null:
+		return
+
+	_extra.append({"node": pivot, "steers": steers, "angle": 0.0})
+
+
+func model_wheel_count() -> int:
+	return _extra.size()
+
+
 func _physics_process(delta: float) -> void:
+	_drive_extra_wheels()
+	_drive_procedural_wheels(delta)
+
+
+## Real-model wheels roll with the truck's own speed.
+func _drive_extra_wheels() -> void:
+	if _truck == null or _extra.is_empty():
+		return
+
+	var speed := _truck.linear_velocity.length()
+	var steering := 0.0
+	var front := _truck.get_node_or_null("WheelFL") as VehicleWheel3D
+
+	if front != null:
+		steering = front.steering
+
+	for wheel in _extra:
+		var pivot := wheel["node"] as Node3D
+
+		if pivot == null:
+			continue
+
+		wheel["angle"] = wrapf(float(wheel["angle"]) + speed / 0.5 * get_physics_process_delta_time(), -TAU, TAU)
+		pivot.rotation = Vector3(float(wheel["angle"]), steering if bool(wheel["steers"]) else 0.0, 0.0)
+
+
+func _drive_procedural_wheels(delta: float) -> void:
 	for i in _wheels.size():
 		var spin := _spins[i]
 		if spin == null:

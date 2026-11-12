@@ -24,6 +24,26 @@ Binary uploads are blocked in chat (only images and text), so use one of these:
 3. **Screenshots** (PNG/JPG are allowed): useful for judging the look, which is the part automated
    checks cannot see — but a picture cannot become a mesh.
 
+## What is in here now
+
+`truck.glb` — 1.27 MB, 36,332 triangles, 35 materials, exported from **Sketchfab**
+(`generator: Sketchfab-13.84.0`). The socket fits it automatically:
+
+```
+raw       : 3.45 x 4.51 x 15.91 m, cab facing +Z, origin 2.29 m under the ground
+fitted to : 2.50 x 3.27 x 11.53 m, cab facing -Z, front axle on WheelFL,
+            wheels on the ground, chassis collider resized, lamps on the real nose,
+            trailer hitch moved to z 6.89
+```
+
+> **Licence:** this file came from a third-party upload. Before this repo is published
+> anywhere else, add the model's author and licence here (Sketchfab pages usually state
+> CC-BY or CC-BY-NC). If it is CC-BY, the attribution line below is the minimum:
+>
+> ```
+> Truck model: <author> — <title> — <url> — licensed under CC-BY 4.0
+> ```
+
 ## The truck
 
 Put the mesh at **`models/truck.glb`** and it is picked up automatically on the

@@ -74,7 +74,14 @@ func _check_settings_persistence() -> void:
 	_check(is_equal_approx(Settings.mouse_sensitivity, 0.008), "sensitivity survives a reload")
 
 	Settings.set_mouse_sensitivity(1.5)
-	_check(Settings.mouse_sensitivity <= 0.012, "sensitivity is clamped to the allowed range")
+	_check(Settings.mouse_sensitivity <= 0.008, "sensitivity is clamped to the allowed range")
+
+	# Regression: a save written on the old ~40x hotter scale (default was 0.12)
+	# clamped to the new ceiling and the mouse still felt frantic. Old values
+	# must be mapped across, not clamped.
+	_check(Settings.migrated_sensitivity(0.12) < 0.004, "an old-scale save is migrated down (%.4f)" % Settings.migrated_sensitivity(0.12))
+	_check(Settings.migrated_sensitivity(0.40) <= 0.008, "the hottest old save lands at the new ceiling")
+	_check(is_equal_approx(Settings.migrated_sensitivity(0.005), 0.005), "new-scale saves pass through untouched")
 
 	Settings.set_mouse_sensitivity(original)
 

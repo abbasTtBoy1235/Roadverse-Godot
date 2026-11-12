@@ -172,7 +172,7 @@ func _rig_rear_z() -> float:
 
 func _sensitivity() -> float:
 	if Settings == null:
-		return 0.005
+		return 0.003
 
 	return Settings.mouse_sensitivity
 

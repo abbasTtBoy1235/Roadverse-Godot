@@ -50,8 +50,19 @@ func _build() -> void:
 	_panel = PanelContainer.new()
 	_panel.name = "Panel"
 	_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_panel.custom_minimum_size = Vector2(320, 0)
-	_panel.position = Vector2(-160, -120)
+	_panel.custom_minimum_size = Vector2(340, 0)
+	_panel.position = Vector2(-170, -130)
+
+	var card := StyleBoxFlat.new()
+	card.bg_color = Color(0.03, 0.04, 0.08, 0.97)
+	card.border_color = Color(0.95, 0.62, 0.22, 0.55)
+	card.set_border_width_all(1)
+	card.set_corner_radius_all(14)
+	card.content_margin_left = 24
+	card.content_margin_right = 24
+	card.content_margin_top = 20
+	card.content_margin_bottom = 20
+	_panel.add_theme_stylebox_override("panel", card)
 	add_child(_panel)
 
 	var column := VBoxContainer.new()
@@ -63,6 +74,7 @@ func _build() -> void:
 	heading.name = "Heading"
 	heading.text = "PAUSED"
 	heading.add_theme_font_size_override("font_size", 30)
+	heading.add_theme_color_override("font_color", Color(0.95, 0.68, 0.3))
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(heading)
 
@@ -81,8 +93,24 @@ func _make_button(parent: Node, node_name: String, text: String) -> Button:
 	var button := Button.new()
 	button.name = node_name
 	button.text = text
-	button.custom_minimum_size = Vector2(0, 44)
+	button.custom_minimum_size = Vector2(0, 48)
 	button.add_theme_font_size_override("font_size", 19)
+	button.add_theme_color_override("font_color", Color(0.88, 0.9, 0.96))
+	button.add_theme_color_override("font_hover_color", Color(1.0, 0.85, 0.6))
+
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.06, 0.075, 0.13, 0.95)
+	normal.border_color = Color(0.35, 0.42, 0.58, 0.8)
+	normal.set_border_width_all(1)
+	normal.set_corner_radius_all(10)
+	button.add_theme_stylebox_override("normal", normal)
+
+	var hover := StyleBoxFlat.new()
+	hover.bg_color = Color(0.11, 0.14, 0.22, 0.98)
+	hover.border_color = Color(0.95, 0.62, 0.22, 0.9)
+	hover.set_border_width_all(1)
+	hover.set_corner_radius_all(10)
+	button.add_theme_stylebox_override("hover", hover)
 	parent.add_child(button)
 	return button
 

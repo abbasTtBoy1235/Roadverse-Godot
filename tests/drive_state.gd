@@ -69,6 +69,27 @@ func _ready() -> void:
 	# The GLB is a complete truck with its own cargo body; the game used to hang
 	# a second, procedural trailer behind it. It must not come back.
 	_check(_trailer == null, "no second trailer is attached behind the truck")
+
+	# Regression (user screenshot, 2026-11-12): the ground plane was 800x800
+	# centred on the spawn, so it ended at z=-400 while the route runs past
+	# 500 m — the map simply stopped working at ~77%. The ground has to cover
+	# the gate and the end of the road, visually and physically.
+	var ground_mesh := _game.get_node_or_null("Ground/Mesh") as MeshInstance3D
+	var ground_shape := _game.get_node_or_null("Ground/Shape") as CollisionShape3D
+	var mission := _game.get_node_or_null("Mission")
+
+	if ground_mesh != null and _road != null and mission != null:
+		var ground_box: AABB = ground_mesh.global_transform * ground_mesh.get_aabb()
+		var goal_point: Vector3 = _road.call("point_at", float(mission.get("goal_distance")), 0.0, 0.0)
+		var road_curve: Curve3D = _road.get("curve")
+		var end_point: Vector3 = _road.call("point_at", road_curve.get_baked_length(), 0.0, 0.0)
+
+		_check(ground_box.position.x <= goal_point.x and goal_point.x <= ground_box.end.x
+			and ground_box.position.z <= goal_point.z and goal_point.z <= ground_box.end.z,
+			"the ground reaches the delivery gate (z %.0f)" % goal_point.z)
+		_check(ground_box.position.z <= end_point.z, "the ground reaches the end of the road (z %.0f)" % end_point.z)
+		_check(ground_shape != null and (ground_shape.shape as BoxShape3D).size.x >= 3000.0,
+			"the ground collision matches the visual ground")
 	_check(_mission != null, "mission found")
 	_check(_results != null, "results panel found")
 

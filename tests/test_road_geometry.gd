@@ -37,6 +37,7 @@ func _initialize() -> void:
 	_check_overpass(road)
 	_check_collision(road)
 	_check_wetness(road)
+	_check_city(road)
 	_check_determinism()
 
 	var lights := _count_lamps(road)
@@ -59,6 +60,29 @@ func _check(condition: bool, message: String) -> void:
 	else:
 		_failures += 1
 		printerr("  FAIL %s" % message)
+
+
+func _check_city(road: Node3D) -> void:
+	# The city used to be 70 blocks past the end of the road. It now runs
+	# alongside the second half of the route as well as beyond it.
+	_check(road.city_block_count >= 180, "the city has real bulk (%d blocks)" % road.city_block_count)
+	_check(road.city_window_count >= 2000, "the city windows are dense (%d)" % road.city_window_count)
+	_check(road.beacon_count >= 10, "the tall towers carry beacons (%d)" % road.beacon_count)
+
+	var blocks := road.get_node_or_null("CityBlocks") as MultiMeshInstance3D
+	_check(blocks != null and blocks.multimesh.instance_count == road.city_block_count, "city multimesh matches the block count")
+
+	if blocks != null:
+		var length: float = road.get("curve").get_baked_length()
+		var alongside := 0
+
+		for i in blocks.multimesh.instance_count:
+			var origin := blocks.multimesh.get_instance_transform(i).origin
+
+			if road.nearest_distance(origin) < length * 0.97:
+				alongside += 1
+
+		_check(alongside >= 80, "districts run alongside the road, not only past its end (%d)" % alongside)
 
 
 func _check_curve(road: Node3D) -> void:

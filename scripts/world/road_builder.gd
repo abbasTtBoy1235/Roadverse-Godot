@@ -77,6 +77,9 @@ var prop_shapes := 0
 ## Top of every tall city block, for the warning beacons.
 var city_tops: Array[Vector3] = []
 var beacon_count := 0
+## How many blocks and lit windows the city got. Test hooks.
+var city_block_count := 0
+var city_window_count := 0
 
 var _beacon_material: StandardMaterial3D
 
@@ -845,48 +848,68 @@ func _build_overpass() -> void:
 
 
 func _build_city_glow() -> void:
-	# A distant skyline of emissive blocks. WorldEnvironment glow turns these
-	# into a haze on the horizon, which reads as a city at night.
+	# A real city, not a skyline postcard: districts run alongside the last
+	# half of the road (set back far enough never to swallow the roadside)
+	# and keep going past the end of it, taller and denser than before.
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(1.0, 1.0, 1.0)
 
 	var transforms: Array[Transform3D] = []
+	var road_points: Array[Vector3] = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value + 7
 
-	# Place the skyline past the end of the road, spread across the horizon.
+	# Approach districts: both sides of the road for its second half.
+	for i in 130:
+		var distance := rng.randf_range(_baked_length * 0.48, _baked_length)
+		var side := -1.0 if i % 2 == 0 else 1.0
+		var lateral := side * rng.randf_range(58.0, 300.0)
+		var width := rng.randf_range(10.0, 30.0)
+		var height := rng.randf_range(12.0, 62.0)
+		var depth := rng.randf_range(10.0, 30.0)
+
+		var position := _place(distance, lateral, height * 0.5)
+		var basis := Basis(Vector3.UP, rng.randf_range(-0.25, 0.25)).scaled(Vector3(width, height, depth))
+		transforms.append(Transform3D(basis, position))
+		road_points.append(_place(distance, 0.0, 0.0))
+
+	# The city keeps going past the end of the road.
 	var end_point := _point(_baked_length)
 	var end_direction := _tangent(_baked_length)
 	var end_right := _right(_baked_length)
 
 	for i in 70:
-		var lateral := rng.randf_range(-240.0, 240.0)
-		var width := rng.randf_range(8.0, 26.0)
-		var height := rng.randf_range(10.0, 55.0)
-		var depth := rng.randf_range(8.0, 26.0)
-		var ahead := rng.randf_range(-30.0, 160.0)
+		var lateral := rng.randf_range(-340.0, 340.0)
+		var width := rng.randf_range(10.0, 34.0)
+		var height := rng.randf_range(14.0, 78.0)
+		var depth := rng.randf_range(10.0, 34.0)
+		var ahead := rng.randf_range(-20.0, 240.0)
 
 		var position := end_point + end_direction * ahead + end_right * lateral + Vector3.UP * (height * 0.5)
 		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(width, height, depth))
 		transforms.append(Transform3D(basis, position))
+		road_points.append(end_point)
 
+	city_block_count = transforms.size()
 	_add_multimesh("CityBlocks", mesh, _city_glow, transforms)
-	_build_city_windows(transforms, rng, end_point)
+	_build_city_windows(transforms, road_points, rng)
 
 
 ## Lit windows scattered over the faces of the skyline, plus blinking beacons on
 ## the tallest towers. Distance sells them: they read as a million tiny lights.
-func _build_city_windows(blocks: Array[Transform3D], rng: RandomNumberGenerator, look_at_point: Vector3) -> void:
+func _build_city_windows(blocks: Array[Transform3D], road_points: Array[Vector3], rng: RandomNumberGenerator) -> void:
 	var window_mesh := BoxMesh.new()
 	window_mesh.size = Vector3(1.9, 1.3, 0.25)
 
 	var transforms: Array[Transform3D] = []
 
-	for i in 900:
+	for i in 2600:
 		if blocks.is_empty():
 			break
 
-		var block := blocks[rng.randi_range(0, blocks.size() - 1)]
+		var pick := rng.randi_range(0, blocks.size() - 1)
+		var block := blocks[pick]
+		var look_at_point: Vector3 = road_points[pick] if pick < road_points.size() else block.origin
 		var size := block.basis.get_scale()
 		var height := size.y
 
@@ -914,6 +937,7 @@ func _build_city_windows(blocks: Array[Transform3D], rng: RandomNumberGenerator,
 		var basis := Basis(Vector3.UP, atan2(to_road.x, to_road.z)).scaled(Vector3(1.0, 1.0, 1.0))
 		transforms.append(Transform3D(basis, position))
 
+	city_window_count = transforms.size()
 	_add_multimesh("CityWindows", window_mesh, _window_material(), transforms)
 
 	# Beacons on the six tallest blocks.
@@ -936,7 +960,7 @@ func _build_city_windows(blocks: Array[Transform3D], rng: RandomNumberGenerator,
 
 	var beacon_transforms: Array[Transform3D] = []
 
-	for i in mini(6, tallest.size()):
+	for i in mini(10, tallest.size()):
 		var block: Transform3D = tallest[i]
 		var top: Vector3 = block.origin + Vector3.UP * (block.basis.get_scale().y * 0.5 + 2.0)
 		beacon_transforms.append(Transform3D(Basis(), top))

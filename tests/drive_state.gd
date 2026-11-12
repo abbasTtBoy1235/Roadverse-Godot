@@ -349,6 +349,21 @@ func _check_model_socket() -> void:
 
 	if visuals != null:
 		_check(visuals.model_wheel_count() >= 4, "the model's wheels are driven (%d)" % visuals.model_wheel_count())
+		_check(visuals.model_steering_count() == 2, "both front wheels steer (%d)" % visuals.model_steering_count())
+
+	# Regression (user screenshot, 2026-11-12): the fitted wheels sat 1.16 m too
+	# low, buried in the road. Their centres must sit on the physics anchors.
+	var wheel_heights_ok := true
+	var wheel_bottom := INF
+
+	for entry in socket.wheel_report():
+		if absf(float(entry["y"]) - 0.7) > 0.15:
+			wheel_heights_ok = false
+		wheel_bottom = minf(wheel_bottom, float(entry["y"]) - float(entry["radius"]))
+
+	_check(socket.wheel_report().size() >= 4, "the wheel report finds the wheels (%d)" % socket.wheel_report().size())
+	_check(wheel_heights_ok, "the model's wheel centres sit on the wheel anchors")
+	_check(wheel_bottom > -0.12, "the model's wheels are not buried in the road (bottom %.2f)" % wheel_bottom)
 
 	_check(not (_truck.get_node("WheelFL/Spin/Visual") as Node3D).visible, "the primitive wheels are hidden")
 
@@ -356,6 +371,7 @@ func _check_model_socket() -> void:
 
 	if trailer != null:
 		_check(trailer.hitch_offset.z > 4.4, "the trailer hangs off the real rear end (z %.2f)" % trailer.hitch_offset.z)
+		_check(absf(trailer.global_position.y) < 0.2, "the trailer sits on the ground, not floating (y %.2f)" % trailer.global_position.y)
 
 
 func _finish() -> void:

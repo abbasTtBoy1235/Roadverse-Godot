@@ -6,9 +6,9 @@ extends Node3D
 ##   1. scales it to a real width,
 ##   2. turns it the right way round (GLB trucks are usually modelled facing +Z),
 ##   3. drops it on the ground and centres it,
-##   4. moves the four `VehicleWheel3D` anchors onto the model's own axles, takes
-##      its wheel radius, and hangs the real wheel meshes on the spin pivots so
-##      they steer and roll,
+##   4. leaves the four `VehicleWheel3D` anchors exactly where the handling was
+##      tuned for (Godot re-applies their scene transforms anyway) and hangs the
+##      model's own wheel meshes on pivots that steer and roll,
 ##   5. resizes the chassis collider to the mesh.
 ##
 ## With no file present the procedural truck is used and nothing changes.
@@ -171,7 +171,7 @@ func _axle_centres() -> Vector3:
 
 	var front := INF
 	var rear := -INF
-	var height := 0.0
+	var height := -INF
 
 	for cluster in clusters:
 		var centre: Vector3 = cluster["centre"]
@@ -245,7 +245,7 @@ func model_bounds() -> AABB:
 	var first := true
 	var inverse := global_transform.affine_inverse()
 
-	for node in _descendants(_model_root):
+	for node in _descendants(self):
 		var instance := node as MeshInstance3D
 
 		if instance == null or instance.mesh == null:
@@ -271,8 +271,10 @@ func _adopt_wheels() -> void:
 		return
 
 	var visuals := _truck.get_node_or_null("WheelVisuals") as WheelVisuals
-	var anchors := _anchor_reference()
-	var mid := anchors.z
+
+	var front_z := INF
+	for cluster in clusters:
+		front_z = minf(front_z, (cluster["centre"] as Vector3).z)
 
 	for cluster in clusters:
 		var centre: Vector3 = cluster["centre"]
@@ -300,7 +302,7 @@ func _adopt_wheels() -> void:
 		model_wheels.append(String(group.name))
 
 		if visuals != null:
-			visuals.register_model_wheel(pivot, centre.z < mid)
+			visuals.register_model_wheel(pivot, centre.z <= front_z + 0.6)
 
 
 ## Groups every wheel-ish node into wheels: a tyre and its rim are one wheel.
@@ -310,7 +312,7 @@ func _wheel_clusters() -> Array[Dictionary]:
 	var hint := wheel_name_hint.to_lower()
 	var clusters: Array[Dictionary] = []
 
-	for node in _descendants(_model_root):
+	for node in _descendants(self):
 		if not String(node.name).to_lower().contains(hint):
 			continue
 

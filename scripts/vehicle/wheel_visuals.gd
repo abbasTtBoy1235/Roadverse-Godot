@@ -45,6 +45,15 @@ func model_wheel_count() -> int:
 	return _extra.size()
 
 
+## Test hook: how many of the model's wheels take the steering angle.
+func model_steering_count() -> int:
+	var count := 0
+	for wheel in _extra:
+		if bool(wheel["steers"]):
+			count += 1
+	return count
+
+
 func _physics_process(delta: float) -> void:
 	_drive_extra_wheels()
 	_drive_procedural_wheels(delta)

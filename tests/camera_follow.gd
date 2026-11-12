@@ -18,6 +18,7 @@ var _start_truck := Vector3.ZERO
 var _start_camera := Vector3.ZERO
 var _min_gap := 9999.0
 var _max_gap := 0.0
+var _min_camera_y := 9999.0
 var _failures := 0
 
 
@@ -41,6 +42,7 @@ func _physics_process(delta: float) -> void:
 	var gap := _truck.global_position.distance_to(_camera.global_position)
 	_min_gap = minf(_min_gap, gap)
 	_max_gap = maxf(_max_gap, gap)
+	_min_camera_y = minf(_min_camera_y, _camera.global_position.y)
 
 	if _elapsed >= DRIVE_SECONDS:
 		Input.action_release("rv_throttle")
@@ -65,6 +67,17 @@ func _finish() -> void:
 	var forward := -_truck.global_basis.z
 	forward.y = 0.0
 	_check(behind.normalized().dot(forward.normalized()) < -0.5, "the camera stays behind the truck")
+
+	# Regression (user screenshot, 2026-11-12): orbiting down put the camera under
+	# the road, and at rest it sat inside the trailer's cargo box.
+	_check(_min_camera_y > 0.4, "the camera never goes under the road (min y %.2f)" % _min_camera_y)
+
+	var trailer := _game.get_node_or_null("Trailer") as Trailer
+
+	if trailer != null:
+		var camera_local := (_truck as Node3D).global_transform.affine_inverse() * _camera.global_position
+		var rear_local := (_truck as Node3D).global_transform.affine_inverse() * trailer.rear_point()
+		_check(camera_local.z > rear_local.z, "the camera stays behind the trailer (z %.1f > %.1f)" % [camera_local.z, rear_local.z])
 
 	if _failures == 0:
 		print("[follow] PASS")

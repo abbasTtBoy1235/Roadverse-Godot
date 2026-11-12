@@ -4,7 +4,10 @@ extends RefCounted
 ## recentring. No nodes involved, so it is unit tested in tests/test_camera_orbit.gd.
 
 const MIN_PITCH := -0.30
-const MAX_PITCH := 0.95
+## Positive pitch swings the camera *down* towards the road. At the old 0.95 rad
+## limit the camera ended up ~4 m under the ground plane, looking up at the
+## underside of the truck; 0.42 keeps a low dramatic angle without burying it.
+const MAX_PITCH := 0.42
 const MIN_ZOOM := 0.55
 const MAX_ZOOM := 1.70
 

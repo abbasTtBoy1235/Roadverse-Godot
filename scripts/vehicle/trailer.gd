@@ -15,6 +15,9 @@ extends Node3D
 @export var deck_height := 1.1
 @export var wheelbase := 7.4
 @export var cargo_color := Color(0.72, 0.74, 0.78)
+## The road plane. The trailer's own geometry is built with its wheels on y=0,
+## so its origin belongs here, not up at bumper height.
+@export var ground_height := 0.0
 
 var trailer_yaw := 0.0
 var wheels: Array[MeshInstance3D] = []
@@ -25,6 +28,7 @@ var _last_yaw := 0.0
 
 
 func _ready() -> void:
+	add_to_group("rv_trailer")
 	_truck = get_node_or_null(truck_path) as TruckController
 
 	if _truck == null:
@@ -132,9 +136,17 @@ func _physics_process(delta: float) -> void:
 		wheel.rotation.z -= spin
 
 
-func _snap_to_hitch() -> void:
+## Where this node has to sit: on the hitch in x/z, on the road in y. Putting the
+## origin at the hitch's height left the whole trailer floating ~0.7 m up, wheels
+## dangling, because everything below the origin assumes it rests on the ground.
+func _hitch_target() -> Vector3:
 	var hitch := _truck.global_transform * hitch_offset
-	global_transform = Transform3D(Basis(Vector3.UP, trailer_yaw), hitch)
+	hitch.y = ground_height
+	return hitch
+
+
+func _snap_to_hitch() -> void:
+	global_transform = Transform3D(Basis(Vector3.UP, trailer_yaw), _hitch_target())
 
 
 ## Test hook: how far the hitch has drifted from the truck, in metres.
@@ -142,7 +154,7 @@ func hitch_error() -> float:
 	if _truck == null:
 		return INF
 
-	return (global_position - _truck.global_transform * hitch_offset).length()
+	return (global_position - _hitch_target()).length()
 
 
 ## Test hook: angle between the tractor and the trailer, in degrees.
@@ -151,6 +163,12 @@ func articulation_degrees() -> float:
 		return 0.0
 
 	return rad_to_deg(absf(angle_difference(trailer_yaw, _truck.global_rotation.y)))
+
+
+## World position of the trailer's back end. The chase camera uses it to stay
+## behind the whole rig instead of inside the cargo box.
+func rear_point() -> Vector3:
+	return global_transform * Vector3(0.0, 0.0, trailer_length)
 
 
 ## Test hook: how tight a corner the rig is currently in.

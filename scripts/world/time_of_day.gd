@@ -21,6 +21,7 @@ var _environment: Environment
 
 
 func _ready() -> void:
+	day_length_seconds = Settings.day_length_seconds()
 	hour = fposmod(start_hour, 24.0)
 
 	_sun = get_node_or_null(sun_path) as DirectionalLight3D

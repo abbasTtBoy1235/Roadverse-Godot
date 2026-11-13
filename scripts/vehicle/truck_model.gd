@@ -40,6 +40,8 @@ var model_rear_z := 0.0
 var model_front_z := 0.0
 ## How many glass panels were made transparent. Test hook.
 var glass_panel_count := 0
+## Opacity left on the glass after treatment (1 = untreated). Test hook.
+var glass_alpha := 1.0
 
 var _truck: VehicleBody3D
 var _model_root: Node3D
@@ -120,8 +122,9 @@ func _make_glass_transparent() -> void:
 			glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 
 			var tint := glass.albedo_color
-			tint.a = 0.18
+			tint.a = 0.08
 			glass.albedo_color = tint
+			glass_alpha = tint.a
 			glass.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 			instance.set_surface_override_material(surface, glass)

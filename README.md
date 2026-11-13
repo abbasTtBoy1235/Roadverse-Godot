@@ -68,10 +68,10 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
 | `tests/test_day_cycle.gd` | day/night model — 26 checks |
-| `tests/test_road_geometry.gd` | procedural road, toll plaza and the city — 158 checks |
+| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities and the depots — 168 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
-| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 39 checks |
-| `tests/camera_follow.tscn` | the camera keeps up with the truck — 7 checks |
+| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 55 checks |
+| `tests/camera_follow.tscn` | the camera keeps up with the truck — 8 checks |
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap and car-following maths — 17 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
@@ -80,7 +80,7 @@ That runs three steps headlessly:
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**459 checks total.** The same suite runs on every push in GitHub Actions
+**488 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -138,9 +138,11 @@ throttle via `Input.action_press`, and asserts that the truck:
 | Overpass | concrete deck with parapets and pillars at 55% of the route |
 | Distant hills | low-poly silhouettes 240–420 m out, no collision |
 | City glow | emissive skyline past the end of the road, picked up by the glow pass |
+| Two cities | a lower-rise loading city over the first quarter of the route and a taller delivery city over the last third — six building columns deep per side, with open country and the toll between them |
+| Freight depots | a warehouse, dock canopy, marked loading bay and container stacks in each city: `LOADING DEPOT` where every job starts, `DELIVERY DEPOT` beside the destination gate |
 | Traffic | 17 NPC cars and vans looping both lanes, with spinning wheels, brake lamps and headlights |
 | Barrier | the guardrails are real collision boxes, so the truck bounces off instead of driving through |
-| City | 241 blocks on a real street grid alongside and past the road, avenues and cross streets, 4,200 lit windows, 12 tower beacons |
+| City | 400+ blocks across the two cities and the downtown beyond the end, on a real street grid with avenues and cross streets, 8,200 lit windows, 12 tower beacons |
 
 Repeated props use `MultiMeshInstance3D`, so ~900 instances cost a handful of draw calls.
 Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for a different
@@ -279,10 +281,14 @@ truck and camera stays between 5 m and 30 m the whole time; that is the regressi
 
 ## Menus
 
-- **Main menu** (`scenes/menu.tscn`): PLAY / SETTINGS / QUIT, built in code.
+- **Main menu** (`scenes/menu.tscn`): PLAY / CAREER / HOW TO PLAY / SETTINGS / QUIT, built in
+  code. The CAREER panel shows cash, rank, progress to the next rank, deliveries, best score
+  and the next job, and can reset the career; HOW TO PLAY explains the run and the controls.
 - **Pause menu** (`Esc` inside the game): RESUME / RESTART / MAIN MENU / QUIT. Its process mode
   is `ALWAYS` so it keeps working while the tree is paused.
-- Settings persist to `user://settings.cfg`.
+- Settings persist to `user://settings.cfg`: mouse sensitivity, inverted look, fullscreen,
+  master volume, camera FOV, chase-camera height, day length (5/15/30/60 minutes) and
+  graphics quality (MSAA off/2x/4x).
 
 ---
 

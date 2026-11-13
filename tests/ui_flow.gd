@@ -41,6 +41,28 @@ func _check_menu() -> void:
 
 	_check(menu.get_node_or_null("Title") != null, "menu has a title")
 	_check(menu.find_child("PlayButton", true, false) != null, "menu has a PLAY button")
+	_check(menu.find_child("CareerButton", true, false) != null, "menu has a CAREER button")
+	_check(menu.find_child("HelpButton", true, false) != null, "menu has a HOW TO PLAY button")
+	_check(menu.get_node_or_null("Footer") != null, "menu has a footer line")
+
+	menu.call("_on_help_pressed")
+	var help_panel := menu.get_node_or_null("HelpPanel")
+	_check(help_panel != null and help_panel.visible, "the help panel opens")
+	menu.call("_on_back_pressed")
+	_check(help_panel != null and not help_panel.visible, "the help panel closes again")
+
+	menu.call("_on_career_pressed")
+	var career_panel := menu.get_node_or_null("CareerPanel")
+	_check(career_panel != null and career_panel.visible, "the career panel opens")
+	var stats := menu.find_child("CareerStats", true, false) as Label
+	_check(stats != null and stats.text.contains("Rank"), "the career panel shows rank and cash")
+	menu.call("_on_back_pressed")
+
+	_check(menu.find_child("VolumeSlider", true, false) != null, "settings has a volume slider")
+	_check(menu.find_child("FovSlider", true, false) != null, "settings has a camera FOV slider")
+	_check(menu.find_child("HeightSlider", true, false) != null, "settings has a camera height slider")
+	_check(menu.find_child("DayOption", true, false) != null, "settings has a day-length choice")
+	_check(menu.find_child("QualityOption", true, false) != null, "settings has a quality choice")
 	_check(menu.find_child("SettingsButton", true, false) != null, "menu has a SETTINGS button")
 	_check(menu.find_child("QuitButton", true, false) != null, "menu has a QUIT button")
 
@@ -84,6 +106,18 @@ func _check_settings_persistence() -> void:
 	_check(is_equal_approx(Settings.migrated_sensitivity(0.005), 0.005), "new-scale saves pass through untouched")
 
 	Settings.set_mouse_sensitivity(original)
+
+	Settings.set_master_volume(0.35)
+	Settings.set_camera_fov(80.0)
+	Settings.set_day_minutes(30)
+	Settings.load_settings()
+	_check(is_equal_approx(Settings.master_volume, 0.35), "volume survives a reload")
+	_check(is_equal_approx(Settings.camera_fov, 80.0), "camera FOV survives a reload")
+	_check(Settings.day_minutes == 30, "day length survives a reload")
+	_check(is_equal_approx(Settings.day_length_seconds(), 1800.0), "day length converts to seconds")
+	Settings.set_master_volume(0.8)
+	Settings.set_camera_fov(70.0)
+	Settings.set_day_minutes(15)
 
 
 func _check_game_scene() -> void:

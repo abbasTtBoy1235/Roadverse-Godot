@@ -300,7 +300,7 @@ func _check_steering() -> void:
 	var lights := _truck.get_node_or_null("Lights") as TruckLights
 
 	if lights != null:
-		_check(lights.indicator_state() == "right", "the right indicator blinks while steering right (%s)" % lights.indicator_state())
+		_check(lights.indicator_lamp_count() == 0, "no bolt-on indicator lamps: the truck uses its own (%d)" % lights.indicator_lamp_count())
 
 
 ## Fires a ray from the truck straight at the nearest piece of guardrail: it must
@@ -498,6 +498,7 @@ func _check_model_socket() -> void:
 
 	_check(socket.has_model, "the GLB was loaded and fitted")
 	_check(socket.glass_panel_count >= 1, "the cab glass was made see-through (%d panels)" % socket.glass_panel_count)
+	_check(socket.glass_alpha < 0.12, "the glass is properly clear from the cab (alpha %.2f)" % socket.glass_alpha)
 	_check(not (_truck.get_node("Body") as Node3D).visible, "the placeholder body is hidden")
 	_check(not (_truck.get_node("Cab") as Node3D).visible, "the placeholder cab is hidden")
 

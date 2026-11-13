@@ -103,6 +103,25 @@ func _check_city(road: Node3D) -> void:
 
 		_check(alongside >= 80, "districts run alongside the road, not only past its end (%d)" % alongside)
 
+		# Both ends of the run are built up; the middle stays countryside.
+		# (Distances come from the builder's own record: multimesh instance
+		# transforms cannot be read back under the headless renderer.)
+		var early := 0
+		var late := 0
+		var middle := 0
+
+		for at in road.city_block_distances:
+			if at < length * 0.25:
+				early += 1
+			elif at > length * 0.6 and at < length * 0.97:
+				late += 1
+			elif at > length * 0.3 and at < length * 0.55:
+				middle += 1
+
+		_check(early >= 50, "the origin city is big (%d blocks)" % early)
+		_check(late >= 80, "the destination city is big (%d blocks)" % late)
+		_check(middle <= 10, "the country between the cities stays open (%d blocks)" % middle)
+
 
 func _check_route_furniture(road: Node3D) -> void:
 	var length: float = road.get("curve").get_baked_length()
@@ -125,6 +144,16 @@ func _check_route_furniture(road: Node3D) -> void:
 	_check(road.rest_stop_count == 1, "there is a rest stop (%d)" % road.rest_stop_count)
 	_check(road.lake_blob_count == 6, "the lake was built (%d blobs)" % road.lake_blob_count)
 	_check(road.city_tier_count >= 15, "tall towers get stepped crowns (%d)" % road.city_tier_count)
+
+	# Two freight depots: loading in the start city, delivery by the gate.
+	_check(road.warehouse_count == 2, "both cities have a freight warehouse (%d)" % road.warehouse_count)
+	_check(road.depot_crate_count >= 12, "the depots are stacked with containers (%d)" % road.depot_crate_count)
+	_check(road.get_node_or_null("LoadingDepot/Warehouse") != null, "the loading depot was built")
+	_check(road.get_node_or_null("DeliveryDepot/Warehouse") != null, "the delivery depot was built")
+	_check(road.nearest_distance(road.loading_depot_position) < length * 0.2,
+		"the loading depot sits in the origin city (%.0f m)" % road.nearest_distance(road.loading_depot_position))
+	_check(road.nearest_distance(road.delivery_depot_position) > length * 0.85,
+		"the delivery depot sits in the destination city (%.0f m)" % road.nearest_distance(road.delivery_depot_position))
 
 
 func _check_curve(road: Node3D) -> void:

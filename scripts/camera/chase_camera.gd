@@ -141,7 +141,8 @@ func _process(delta: float) -> void:
 		return
 
 	var follow_distance := distance * orbit.zoom
-	var follow_height := height
+	var follow_height := height * Settings.camera_height
+	fov = Settings.camera_fov
 
 	if mode == Mode.CHASE_CLOSE:
 		follow_distance *= 0.55

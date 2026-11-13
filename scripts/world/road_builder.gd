@@ -89,6 +89,15 @@ var toll_distance := 0.0
 var toll_booth_count := 0
 ## Lateral position of the inner booth islands: sets the centre-lane width.
 var toll_inner_island_x := 0.0
+## Road distance of every city block (downtown past the end counts as the
+## full length). Instance transforms cannot be read back headlessly, so the
+## layout is recorded here. Test hook.
+var city_block_distances: Array[float] = []
+## Freight depots: where loads are picked up and dropped off. Test hooks.
+var loading_depot_position := Vector3.ZERO
+var delivery_depot_position := Vector3.ZERO
+var warehouse_count := 0
+var depot_crate_count := 0
 var billboard_count := 0
 var chevron_count := 0
 var rest_stop_count := 0
@@ -145,6 +154,7 @@ func build() -> void:
 	_build_toll_plaza()
 	_build_distant_hills()
 	_build_city_glow()
+	_build_depots()
 	_build_prop_collision()
 	_build_collision()
 
@@ -973,49 +983,42 @@ func _build_city_glow() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value + 7
 
-	var pitch := 36.0
-	var city_start := _baked_length * 0.30
+	var pitch := 34.0
 
-	# The town you set out from: low blocks hugging the first stretch of
-	# road, so the run reads as town -> countryside -> toll -> big city.
-	var town_distance := 70.0
+	# Two separate, big cities: the loading city you set out from and the
+	# delivery city you haul to, with open country and the toll between.
+	# Each runs ~a quarter of the route, six building columns deep per side.
+	var zones: Array = [
+		[60.0, _baked_length * 0.24, 30.0],
+		[_baked_length * 0.64, _baked_length - 12.0, 85.0],
+	]
 
-	while town_distance < _baked_length * 0.16:
-		for side: float in [-1.0, 1.0]:
-			for column in 2:
-				if rng.randf() < 0.2:
-					continue
+	for zone in zones:
+		var zone_start: float = zone[0]
+		var zone_end: float = zone[1]
+		var max_height: float = zone[2]
+		var distance := zone_start + pitch * 0.5
 
-				var town_w := rng.randf_range(14.0, 22.0)
-				var town_h := rng.randf_range(6.0, 18.0)
-				var town_basis := _basis(town_distance).scaled(Vector3(town_w, town_h, town_w))
-				transforms.append(Transform3D(town_basis, _place(town_distance, side * (46.0 + float(column) * 30.0), town_h * 0.5)))
-				road_points.append(_place(town_distance, 0.0, 0.0))
+		while distance < zone_end:
+			var downtown := clampf(inverse_lerp(zone_start, zone_end, distance), 0.0, 1.0)
 
-		town_distance += 34.0
+			for side: float in [-1.0, 1.0]:
+				for column in 6:
+					if rng.randf() < 0.13:
+						continue  # a park, a car park, a gap in the street wall
 
-	# Districts alongside the road, on both sides.
-	var distance := city_start + pitch * 0.5
+					var width := rng.randf_range(20.0, 28.0)
+					var depth := rng.randf_range(20.0, 28.0)
+					var height := rng.randf_range(8.0, max_height * 0.35) \
+						+ downtown * downtown * rng.randf_range(0.0, max_height * 0.65)
+					var lateral := side * (48.0 + float(column) * 33.0)
 
-	while distance < _baked_length - 12.0:
-		var downtown := clampf((distance / _baked_length - 0.3) / 0.7, 0.0, 1.0)
+					var basis := _basis(distance).scaled(Vector3(width, height, depth))
+					transforms.append(Transform3D(basis, _place(distance, lateral, height * 0.5)))
+					city_block_distances.append(distance)
+					road_points.append(_place(distance, 0.0, 0.0))
 
-		for side: float in [-1.0, 1.0]:
-			for column in 6:
-				if rng.randf() < 0.14:
-					continue  # a park, a car park, a gap in the street wall
-
-				var width := rng.randf_range(22.0, 28.0)
-				var depth := rng.randf_range(22.0, 28.0)
-				var height := rng.randf_range(10.0, 26.0) \
-					+ downtown * downtown * rng.randf_range(10.0, 55.0)
-				var lateral := side * (54.0 + float(column) * pitch)
-
-				var basis := _basis(distance).scaled(Vector3(width, height, depth))
-				transforms.append(Transform3D(basis, _place(distance, lateral, height * 0.5)))
-				road_points.append(_place(distance, 0.0, 0.0))
-
-		distance += pitch
+			distance += pitch
 
 	# Downtown, past the end of the road: a full grid around the corridor
 	# the road arrives on.
@@ -1024,7 +1027,7 @@ func _build_city_glow() -> void:
 	var end_right := _right(_baked_length)
 	var end_basis := Basis(end_right, Vector3.UP, -end_direction)
 
-	for row in 9:
+	for row in 11:
 		for column in range(-7, 8):
 			if column == 0 and row < 2:
 				continue  # the road's own corridor into the city
@@ -1041,6 +1044,7 @@ func _build_city_glow() -> void:
 
 			var position := end_point + end_direction * ahead + end_right * lateral + Vector3.UP * (height * 0.5)
 			transforms.append(Transform3D(end_basis.scaled(Vector3(width, height, depth)), position))
+			city_block_distances.append(_baked_length)
 			road_points.append(end_point)
 
 	city_block_count = transforms.size()
@@ -1064,14 +1068,14 @@ func _build_city_glow() -> void:
 
 	_add_multimesh("CityTiers", mesh, _city_glow, tier_transforms)
 	city_tier_count = tier_transforms.size()
-	_build_city_avenues(city_start, pitch)
+	_build_city_avenues(zones, pitch)
 	_build_city_streets(end_point, end_direction, end_right)
 	_build_city_windows(transforms, road_points, rng)
 
 
 ## Avenues and cross streets for the districts alongside the road, drawn as
 ## dark ribbons on the ground so the blocks visibly sit in a street grid.
-func _build_city_avenues(city_start: float, pitch: float) -> void:
+func _build_city_avenues(zones: Array, pitch: float) -> void:
 	var material := _mat(Color(0.05, 0.055, 0.07), 0.95)
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 
@@ -1079,25 +1083,29 @@ func _build_city_avenues(city_start: float, pitch: float) -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	# Avenues in the gaps between the building columns (columns sit at
-	# 54/90/126... m with at most 28 m footprints, so these bands stay clear).
-	var bands: Array = [[28.0, 40.0], [68.0, 76.0], [104.0, 112.0], [140.0, 148.0], [176.0, 184.0], [212.0, 220.0]]
+	# 48/81/114... m with at most 28 m footprints, so these bands stay clear).
+	var bands: Array = [[28.0, 38.0], [64.0, 72.0], [97.0, 105.0], [130.0, 138.0], [163.0, 171.0], [196.0, 204.0]]
 	var streets := 0
 
-	for side: float in [-1.0, 1.0]:
-		for band in bands:
-			_add_flat_quad(st, city_start, _baked_length, side * float(band[0]), side * float(band[1]), 0.03)
-			streets += 1
+	for zone in zones:
+		var zone_start: float = zone[0]
+		var zone_end: float = zone[1]
 
-	# Cross streets in the gaps between the building rows.
-	var distance := city_start + pitch * 0.5
+		for side: float in [-1.0, 1.0]:
+			for band in bands:
+				_add_flat_quad(st, zone_start, zone_end, side * float(band[0]), side * float(band[1]), 0.03)
+				streets += 1
 
-	while distance + pitch * 0.5 < _baked_length - 6.0:
-		var from := distance + pitch * 0.5 + 1.0
-		var to := distance + pitch * 1.5 - 1.0
-		_add_flat_quad(st, from, to, 28.0, 250.0, 0.03)
-		_add_flat_quad(st, from, to, -250.0, -28.0, 0.03)
-		streets += 2
-		distance += pitch * 2.0
+		# Cross streets in the gaps between the building rows.
+		var distance := zone_start + pitch * 0.5
+
+		while distance + pitch * 0.5 < zone_end - 6.0:
+			var from := distance + pitch * 0.5 + 1.0
+			var to := distance + pitch * 1.5 - 1.0
+			_add_flat_quad(st, from, to, 28.0, 240.0, 0.03)
+			_add_flat_quad(st, from, to, -240.0, -28.0, 0.03)
+			streets += 2
+			distance += pitch * 2.0
 
 	_commit(st, "CityAvenues", material)
 	city_street_count += streets
@@ -1108,12 +1116,16 @@ func _build_city_avenues(city_start: float, pitch: float) -> void:
 
 	var walk := SurfaceTool.new()
 	walk.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_add_flat_quad(walk, city_start, _baked_length, 23.5, 27.5, 0.05)
-	_add_flat_quad(walk, city_start, _baked_length, -27.5, -23.5, 0.05)
+
+	for zone in zones:
+		_add_flat_quad(walk, zone[0], zone[1], 23.5, 27.5, 0.05)
+		_add_flat_quad(walk, zone[0], zone[1], -27.5, -23.5, 0.05)
+
 	_commit(walk, "CitySidewalks", walk_material)
 
-	# City street lamps along the first avenues. The bulbs share the road
-	# lamps' glass material, so the day/night dimmer reaches them too.
+	# City street lamps along the first avenues of both cities. The bulbs
+	# share the road lamps' glass material, so the day/night dimmer
+	# reaches them too.
 	var pole_mesh := CylinderMesh.new()
 	pole_mesh.top_radius = 0.07
 	pole_mesh.bottom_radius = 0.11
@@ -1128,20 +1140,21 @@ func _build_city_avenues(city_start: float, pitch: float) -> void:
 
 	var pole_transforms: Array[Transform3D] = []
 	var bulb_transforms: Array[Transform3D] = []
-	var lamp_distance := city_start + 12.0
 
-	while lamp_distance < _baked_length:
-		for lateral: float in [-34.0, 34.0, -72.0, 72.0]:
-			var basis := _basis(lamp_distance)
-			pole_transforms.append(Transform3D(basis, _place(lamp_distance, lateral, 3.25)))
-			bulb_transforms.append(Transform3D(basis, _place(lamp_distance, lateral, 6.4)))
+	for zone in zones:
+		var lamp_distance: float = zone[0] + 12.0
 
-		lamp_distance += 26.0
+		while lamp_distance < zone[1]:
+			for lateral: float in [-34.0, 34.0, -72.0, 72.0]:
+				var basis := _basis(lamp_distance)
+				pole_transforms.append(Transform3D(basis, _place(lamp_distance, lateral, 3.25)))
+				bulb_transforms.append(Transform3D(basis, _place(lamp_distance, lateral, 6.4)))
+
+			lamp_distance += 26.0
 
 	_add_multimesh("CityLampPoles", pole_mesh, _metal, pole_transforms)
 	_add_multimesh("CityLampBulbs", bulb_mesh, _lamp_glass, bulb_transforms)
 	city_lamp_count = bulb_transforms.size()
-
 
 
 ## The toll plaza, roughly halfway between the town you leave and the city
@@ -1703,6 +1716,169 @@ func direction_at(distance: float) -> Vector3:
 
 
 ## Solid props: trees, rocks and the overpass pillars.
+
+## Freight depots: a big warehouse, a dock canopy, a marked bay and stacks
+## of containers — one in the loading city where every job starts, one in
+## the delivery city right beside the mission gate.
+func _build_depots() -> void:
+	_build_depot("LoadingDepot", 120.0, 1.0, "LOADING DEPOT", Color(1.0, 0.75, 0.3))
+	_build_depot("DeliveryDepot", _baked_length * 0.92, -1.0, "DELIVERY DEPOT", Color(0.45, 1.0, 0.65))
+
+
+func _build_depot(node_name: String, distance: float, side: float, label: String, accent: Color) -> void:
+	var depot := Node3D.new()
+	depot.name = node_name
+	depot.transform = Transform3D(_basis(distance), _place(distance, side * 56.0, 0.0))
+	add_child(depot)
+
+	if node_name == "LoadingDepot":
+		loading_depot_position = depot.transform.origin
+	else:
+		delivery_depot_position = depot.transform.origin
+
+	var accent_mat := _mat(accent, 0.5)
+	accent_mat.emission_enabled = true
+	accent_mat.emission = accent
+	accent_mat.emission_energy_multiplier = 0.8
+
+	var slab_mesh := BoxMesh.new()
+	slab_mesh.size = Vector3(76.0, 0.14, 88.0)
+
+	var slab := MeshInstance3D.new()
+	slab.name = "Apron"
+	slab.mesh = slab_mesh
+	slab.material_override = _concrete
+	slab.position = Vector3(0.0, 0.07, 0.0)
+	depot.add_child(slab)
+
+	# The warehouse itself, along the back of the apron.
+	var warehouse_mesh := BoxMesh.new()
+	warehouse_mesh.size = Vector3(26.0, 11.0, 48.0)
+
+	var warehouse := MeshInstance3D.new()
+	warehouse.name = "Warehouse"
+	warehouse.mesh = warehouse_mesh
+	warehouse.material_override = _mat(Color(0.23, 0.24, 0.28), 0.8)
+	warehouse.position = Vector3(24.0, 5.5, 0.0)
+	depot.add_child(warehouse)
+	warehouse_count += 1
+
+	prop_spots.append({
+		"position": depot.transform * Vector3(24.0, 5.5, 0.0),
+		"radius": 1.0,
+		"box": Vector3(26.0, 11.0, 48.0),
+		"basis": _basis(distance),
+	})
+
+	# Dock doors on the face that looks at the road, under a canopy.
+	var door_mesh := BoxMesh.new()
+	door_mesh.size = Vector3(0.3, 4.4, 5.6)
+
+	for i in 4:
+		var door := MeshInstance3D.new()
+		door.mesh = door_mesh
+		door.material_override = _metal
+		door.position = Vector3(10.8, 2.2, -16.5 + float(i) * 11.0)
+		depot.add_child(door)
+
+	var canopy_mesh := BoxMesh.new()
+	canopy_mesh.size = Vector3(11.0, 0.35, 48.0)
+
+	var canopy := MeshInstance3D.new()
+	canopy.name = "DockCanopy"
+	canopy.mesh = canopy_mesh
+	canopy.material_override = accent_mat
+	canopy.position = Vector3(6.0, 4.9, 0.0)
+	depot.add_child(canopy)
+
+	# The marked bay the truck is meant to reverse into.
+	var bay_mat := _mat(Color(0.95, 0.8, 0.25), 0.6)
+
+	var bay_line_h := BoxMesh.new()
+	bay_line_h.size = Vector3(12.4, 0.04, 0.35)
+
+	var bay_line_v := BoxMesh.new()
+	bay_line_v.size = Vector3(0.35, 0.04, 18.0)
+
+	for z: float in [-9.0, 9.0]:
+		var line := MeshInstance3D.new()
+		line.mesh = bay_line_h
+		line.material_override = bay_mat
+		line.position = Vector3(-14.0, 0.16, z)
+		depot.add_child(line)
+
+	for x: float in [-20.0, -8.0]:
+		var line := MeshInstance3D.new()
+		line.mesh = bay_line_v
+		line.material_override = bay_mat
+		line.position = Vector3(x, 0.16, 0.0)
+		depot.add_child(line)
+
+	# Container stacks waiting for the next load.
+	var crate_mat_a := _mat(Color(0.55, 0.25, 0.12), 0.7)
+	var crate_mat_b := _mat(Color(0.15, 0.3, 0.45), 0.7)
+	var crate_mat_c := _mat(Color(0.2, 0.42, 0.24), 0.7)
+	var crate_mats: Array = [crate_mat_a, crate_mat_b, crate_mat_c]
+
+	var crate_mesh := BoxMesh.new()
+	crate_mesh.size = Vector3(2.5, 2.6, 6.2)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + int(distance)
+
+	for i in 9:
+		var stack := 2 if i % 3 == 0 else 1
+
+		for level in stack:
+			var crate := MeshInstance3D.new()
+			crate.mesh = crate_mesh
+			crate.material_override = crate_mats[(i + level) % 3]
+			crate.position = Vector3(-27.0 + float(i % 3) * 4.2, 1.3 + float(level) * 2.6, -26.0 + float(i / 3) * 22.0)
+			depot.add_child(crate)
+			depot_crate_count += 1
+
+		prop_spots.append({
+			"position": depot.transform * Vector3(-27.0 + float(i % 3) * 4.2, 1.3, -26.0 + float(i / 3) * 22.0),
+			"radius": 1.0,
+			"box": Vector3(2.5, 2.6 * float(stack), 6.2),
+			"basis": _basis(distance),
+		})
+
+	# Pylon sign by the apron entrance.
+	var pole_mesh := CylinderMesh.new()
+	pole_mesh.top_radius = 0.14
+	pole_mesh.bottom_radius = 0.18
+	pole_mesh.height = 8.0
+	pole_mesh.radial_segments = 8
+
+	var pole := MeshInstance3D.new()
+	pole.mesh = pole_mesh
+	pole.material_override = _metal
+	pole.position = Vector3(-32.0, 4.0, 30.0)
+	depot.add_child(pole)
+	prop_spots.append({"position": depot.transform * pole.position, "radius": 0.35})
+
+	var sign := Label3D.new()
+	sign.name = "DepotSign"
+	sign.text = label
+	sign.font_size = 128
+	sign.pixel_size = 0.01
+	sign.modulate = accent
+	sign.position = Vector3(-32.0, 8.6, 30.4)
+	depot.add_child(sign)
+
+	# Warehouse lettering on the road face.
+	var wall_sign := Label3D.new()
+	wall_sign.name = "WarehouseSign"
+	wall_sign.text = label
+	wall_sign.font_size = 160
+	wall_sign.pixel_size = 0.01
+	wall_sign.modulate = accent
+	wall_sign.rotation.y = -PI * 0.5
+	wall_sign.position = Vector3(10.7, 8.6, 0.0)
+	depot.add_child(wall_sign)
+
+
 func _build_prop_collision() -> void:
 	var body := StaticBody3D.new()
 	body.name = "PropCollision"

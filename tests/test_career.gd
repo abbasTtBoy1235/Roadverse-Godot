@@ -11,10 +11,12 @@ func _initialize() -> void:
 	print("[career] running tests")
 
 	_test_routes()
+	_test_job_kinds()
 	_test_cargo_rotation()
 	_test_pay()
 	_test_ranks()
 	_test_economy()
+	_test_leaderboard_and_achievements()
 
 	print("[career] %d checks, %d failures" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -43,6 +45,41 @@ func _test_routes() -> void:
 	_check(CareerMath.route_length(0) >= 1200.0, "the first job is a real haul now (%.0f m)" % CareerMath.route_length(0))
 	_check(CareerMath.reward_for(1000.0, 1680.0) > CareerMath.reward_for(1000.0, 560.0),
 		"longer hauls pay more than short ones")
+
+
+func _test_job_kinds() -> void:
+	_check(CareerMath.kind_for(0) == "standard", "the first job is a standard haul")
+	_check(CareerMath.kind_for(1) == "fragile", "job two is a fragile load")
+	_check(CareerMath.kind_for(2) == "urgent", "job three is against the clock")
+	_check(CareerMath.kind_for(3) == "standard", "job kinds rotate")
+	_check(CareerMath.damage_multiplier("fragile") > 2.0, "fragile cargo breaks far easier (x%.1f)" % CareerMath.damage_multiplier("fragile"))
+	_check(is_equal_approx(CareerMath.damage_multiplier("standard"), 1.0), "standard cargo takes normal knocks")
+	_check(CareerMath.par_scale("urgent") < 1.0, "urgent jobs run a tighter clock (x%.2f)" % CareerMath.par_scale("urgent"))
+	_check(CareerMath.urgent_bonus_earned("urgent", 50.0, 60.0), "beating the urgent clock earns the bonus")
+	_check(not CareerMath.urgent_bonus_earned("urgent", 70.0, 60.0), "a late urgent run earns no bonus")
+	_check(not CareerMath.urgent_bonus_earned("standard", 50.0, 60.0), "standard jobs have no clock bonus")
+
+
+func _test_leaderboard_and_achievements() -> void:
+	var board: Array = []
+
+	for i in 12:
+		board = CareerMath.leaderboard_insert(board, {"score": i * 100, "cargo": "x", "seconds": i})
+
+	_check(board.size() == 10, "the leaderboard keeps only the top ten (%d)" % board.size())
+	_check(int(board[0].get("score", 0)) == 1100, "the leaderboard is sorted best-first")
+	_check(int(board[9].get("score", 0)) == 200, "the weakest runs fall off the board")
+
+	var fresh := CareerMath.new_achievements({"deliveries": 1, "perfect": 1, "metres": 1500.0, "best": 500, "cash": 300, "unlocked": []})
+	_check(fresh.has("first_load"), "the first delivery unlocks First load")
+	_check(fresh.has("flawless"), "a clean run unlocks White gloves")
+	_check(not fresh.has("ten_loads"), "one delivery is not Regular hauler yet")
+
+	var later := CareerMath.new_achievements({"deliveries": 12, "perfect": 1, "metres": 15000.0, "best": 950, "cash": 13000, "unlocked": fresh})
+	_check(later.has("ten_loads") and later.has("long_hauler") and later.has("sharp") and later.has("tycoon"),
+		"a long career unlocks the rest (%s)" % str(later))
+	_check(not later.has("first_load"), "already-unlocked achievements stay unlocked")
+	_check(CareerMath.achievement_name("flawless") == "White gloves", "achievements have display names")
 
 
 func _test_cargo_rotation() -> void:

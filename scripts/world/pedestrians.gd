@@ -17,6 +17,12 @@ extends Node3D
 var _curve: Curve3D
 var _length := 0.0
 
+var _road_node: Node3D
+var _crossing_distances: Array[float] = []
+var _home_crossings: Array[float] = []
+var _cross_states: Array[int] = []
+var _cross_targets: Array[float] = []
+
 var _bodies: Array[Node3D] = []
 var _distances: Array[float] = []
 var _speeds: Array[float] = []
@@ -42,7 +48,11 @@ func _ready() -> void:
 		push_warning("Pedestrians: road_path must point at a RoadBuilder.")
 		return
 
+	_road_node = road
 	_curve = road.get("curve") as Curve3D
+
+	if road.get("crossing_distances") != null:
+		_crossing_distances = road.get("crossing_distances")
 
 	if _curve == null:
 		push_warning("Pedestrians: the road has no curve yet.")
@@ -125,6 +135,16 @@ func _spawn_all() -> void:
 		_distances.append(fposmod(_length * float(i) / float(maxi(1, pedestrian_count)) + rng.randf_range(-6.0, 6.0), _length))
 		_phases.append(rng.randf_range(0.0, TAU))
 
+		# Every fourth walker is a crosser, tied to one signalised crossing.
+		var home := -1.0
+
+		if i % 4 == 0 and not _crossing_distances.is_empty():
+			home = _crossing_distances[i % _crossing_distances.size()]
+
+		_home_crossings.append(home)
+		_cross_states.append(0)
+		_cross_targets.append(0.0)
+
 		body.transform = _frame(_distances[i], direction, _laterals[i], 0.0)
 
 
@@ -148,6 +168,30 @@ func _physics_process(delta: float) -> void:
 		return
 
 	for i in _bodies.size():
+		if _cross_states[i] == 1:
+			# Mid-crossing: shuffle sideways, distance along the road frozen.
+			_laterals[i] = move_toward(_laterals[i], _cross_targets[i], 1.5 * delta)
+			_phases[i] = wrapf(_phases[i] + _speeds[i] * delta * 3.4, -TAU, TAU)
+
+			if is_equal_approx(_laterals[i], _cross_targets[i]):
+				_cross_states[i] = 0
+
+			var cross_swing := sin(_phases[i]) * 0.55
+			_left_legs[i].rotation.x = cross_swing
+			_right_legs[i].rotation.x = -cross_swing
+			_left_arms[i].rotation.x = -cross_swing * 0.7
+			_right_arms[i].rotation.x = cross_swing * 0.7
+			_bodies[i].transform = _frame(_distances[i], _directions[i], _laterals[i], absf(sin(_phases[i])) * 0.045)
+			continue
+
+		# At a red light, a crosser steps onto the zebra.
+		if _home_crossings[i] >= 0.0 and absf(_distances[i] - _home_crossings[i]) < 0.9 \
+				and _road_node != null and _road_node.has_method("current_signal_phase") \
+				and int(_road_node.call("current_signal_phase")) == 2:
+			_cross_states[i] = 1
+			_cross_targets[i] = -signf(_laterals[i]) * absf(_laterals[i])
+			continue
+
 		_distances[i] = fposmod(_distances[i] + _directions[i] * _speeds[i] * delta, _length)
 		_phases[i] = wrapf(_phases[i] + _speeds[i] * delta * 3.4, -TAU, TAU)
 
@@ -175,6 +219,28 @@ func _frame(distance: float, direction: float, lateral: float, bob: float) -> Tr
 	var basis := Basis(right, Vector3.UP, -forward)
 
 	return Transform3D(basis, point + right * lateral + Vector3.UP * bob)
+
+
+## Test hook: how many walkers are assigned a crossing to use.
+func crossers_assigned() -> int:
+	var count := 0
+
+	for home in _home_crossings:
+		if home >= 0.0:
+			count += 1
+
+	return count
+
+
+## Test hook: how many walkers are on a zebra right now.
+func crossing_now() -> int:
+	var count := 0
+
+	for state in _cross_states:
+		if state == 1:
+			count += 1
+
+	return count
 
 
 ## Test hook: how many walkers are live.

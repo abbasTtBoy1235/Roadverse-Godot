@@ -48,6 +48,11 @@ func _test_wind_curve() -> void:
 
 func _test_fog() -> void:
 	_check(is_equal_approx(Weather.fog_density(false, 0.008, 0.022), 0.008), "clear night keeps the thin fog")
+	_check(is_equal_approx(Weather.grip_for(Weather.Mode.SNOW, 0.5), 0.55), "snow is properly slippery (%.2f)" % Weather.grip_for(Weather.Mode.SNOW, 0.5))
+	_check(Weather.grip_for(Weather.Mode.RAIN, 1.0) < Weather.grip_for(Weather.Mode.RAIN, 0.0), "rain gets greasier as the road soaks")
+	_check(is_equal_approx(Weather.grip_for(Weather.Mode.CLEAR, 0.0), 1.0), "dry tarmac grips fully")
+	_check(Weather.fog_for_mode(Weather.Mode.FOG, 0.008, 0.022) > 0.04, "fog mode is a pea-souper (%.3f)" % Weather.fog_for_mode(Weather.Mode.FOG, 0.008, 0.022))
+	_check(is_equal_approx(Weather.target_wetness_for(Weather.Mode.SNOW), 0.55), "snow leaves slush on the road")
 	_check(is_equal_approx(Weather.fog_density(true, 0.008, 0.022), 0.022), "rain thickens the fog")
 	_check(Weather.fog_density(true, 0.008, 0.022) > Weather.fog_density(false, 0.008, 0.022), "rain is hazier than clear")
 

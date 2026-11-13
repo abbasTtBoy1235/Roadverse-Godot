@@ -55,3 +55,10 @@ func reset() -> void:
 
 func refill() -> void:
 	litres = capacity_litres
+
+
+## Pump fuel in, up to the brim. Returns what actually went in.
+func add_fuel(amount: float) -> float:
+	var added := clampf(amount, 0.0, capacity_litres - litres)
+	litres += added
+	return added

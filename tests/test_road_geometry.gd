@@ -148,6 +148,18 @@ func _check_route_furniture(road: Node3D) -> void:
 	# Two freight depots: loading in the start city, delivery by the gate.
 	_check(road.warehouse_count == 2, "both cities have a freight warehouse (%d)" % road.warehouse_count)
 	_check(road.depot_crate_count >= 12, "the depots are stacked with containers (%d)" % road.depot_crate_count)
+	_check(road.crossing_distances.size() == 4, "each city got two signalised crossings (%d)" % road.crossing_distances.size())
+	_check(road.signal_pole_count == 8, "signal poles stand at the crossings (%d)" % road.signal_pole_count)
+	_check(ROAD_SCRIPT.signal_phase_at(1.0) == 0, "signals start their cycle green")
+	_check(ROAD_SCRIPT.signal_phase_at(9.0) == 1, "signals turn amber mid-cycle")
+	_check(ROAD_SCRIPT.signal_phase_at(12.0) == 2, "signals turn red late in the cycle")
+	_check(ROAD_SCRIPT.signal_phase_at(17.0) == 0, "the signal cycle wraps")
+
+	_check(road.gas_pump_count == 6, "the fuel station has six pumps (%d)" % road.gas_pump_count)
+	_check(road.gas_station_distance > length * 0.24 and road.gas_station_distance < road.toll_distance,
+		"the fuel station sits between the origin city and the toll (%.0f m)" % road.gas_station_distance)
+	_check(road.get_node_or_null("GasStation/Shop") != null, "the fuel station was built")
+
 	_check(road.get_node_or_null("LoadingDepot/Warehouse") != null, "the loading depot was built")
 	_check(road.get_node_or_null("DeliveryDepot/Warehouse") != null, "the delivery depot was built")
 	_check(road.nearest_distance(road.loading_depot_position) < length * 0.2,

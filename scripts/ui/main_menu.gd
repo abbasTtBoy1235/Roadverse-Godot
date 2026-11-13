@@ -340,7 +340,7 @@ func _build_help_panel() -> void:
 
 	_panel_heading(column, "HOW TO PLAY")
 	_panel_text(column, "Pick up the load at the LOADING DEPOT in the city you start in, haul it down the highway — mind the toll plaza halfway — and stop gently inside the gate at the DELIVERY DEPOT. Hard hits wreck cargo; a wrecked load pays nothing.")
-	_panel_text(column, "W / S — throttle & brake      A / D — steer\nSpace — handbrake      L — headlights\nC — camera (chase / close / cockpit)\nMouse — look around      Wheel — zoom\nF — rain      R — recover truck      Esc — pause\nQ / E — indicators are on the truck itself, just drive")
+	_panel_text(column, "W / S — throttle & brake      A / D — steer\nSpace — handbrake      L — headlights\nC — camera (chase / close / cockpit)\nMouse — look around      Wheel — zoom\nF — cycle weather (rain / snow / fog)      R — recover truck\nEsc — pause\nLow on diesel? Park in the FUEL station bay halfway up the route — the pumps bill your wallet. Snow is slippery: brake early.")
 
 	var back := _make_button(column, "HelpBackButton", "BACK")
 	back.pressed.connect(_on_back_pressed)
@@ -376,7 +376,7 @@ func _refresh_career_panel() -> void:
 	var next := CareerMath.next_rank(cash)
 	var next_line := "Top rank reached" if String(next.get("name", "")).is_empty() else "Next rank: %s — $%d to go" % [String(next.get("name", "")), int(next.get("remaining", 0))]
 
-	career_stats_label.text = "Cash  $%d\nRank  %s\n%s\nDeliveries  %d      Best score  %d\nNext job  #%d · %s · %.1f km" % [
+	career_stats_label.text = "Cash  $%d\nRank  %s\n%s\nDeliveries  %d      Best score  %d\nNext job  #%d · %s (%s) · %.1f km" % [
 		cash,
 		String(career.call("rank")),
 		next_line,
@@ -384,8 +384,28 @@ func _refresh_career_panel() -> void:
 		int(career.get("best_score")),
 		int(career.get("job_index")) + 1,
 		String(career.call("current_cargo")),
+		String(career.call("current_kind")),
 		float(career.call("current_route_length")) / 1000.0,
 	]
+
+	var board: Array = career.get("leaderboard")
+
+	if not board.is_empty():
+		career_stats_label.text += "\n\n— BEST RUNS —"
+
+		for i in mini(5, board.size()):
+			var entry: Dictionary = board[i]
+			career_stats_label.text += "\n%d.  %d pts · %s · %ds" % [i + 1, int(entry.get("score", 0)), String(entry.get("cargo", "")), int(entry.get("seconds", 0))]
+
+	var unlocked: Array = career.get("unlocked_achievements")
+
+	if not unlocked.is_empty():
+		var names: Array = []
+
+		for id in unlocked:
+			names.append(CareerMath.achievement_name(String(id)))
+
+		career_stats_label.text += "\n\n🏆 %s" % ", ".join(PackedStringArray(names))
 
 
 func _show_only(panel: PanelContainer) -> void:

@@ -9,6 +9,7 @@ const STEER_SECONDS := 1.0
 const RAIN_SECONDS := 2.0
 const TOLL_SECONDS := 2.2
 const DELIVERY_SECONDS := 6.0
+const GAS_SECONDS := 3.5
 
 var _game: Node3D
 var _truck: TruckController
@@ -70,6 +71,7 @@ func _ready() -> void:
 
 	if _peds != null:
 		_check(int(_peds.call("pedestrian_count_live")) >= 24, "pedestrian NPCs are out walking (%d)" % int(_peds.call("pedestrian_count_live")))
+		_check(int(_peds.call("crossers_assigned")) >= 4, "some pedestrians are assigned a crossing (%d)" % int(_peds.call("crossers_assigned")))
 		_peds_before = _peds.call("pedestrian_positions")
 
 		var positions_finite := true
@@ -178,6 +180,11 @@ func _physics_process(delta: float) -> void:
 		_phase = 5
 		_check_delivery()
 		Input.action_release("rv_throttle")
+		_arm_gas_station()
+
+	elif _phase == 5 and _elapsed >= DRIVE_SECONDS + STEER_SECONDS + RAIN_SECONDS + TOLL_SECONDS + DELIVERY_SECONDS + GAS_SECONDS:
+		_phase = 6
+		_check_gas_station()
 		_finish()
 
 
@@ -364,9 +371,13 @@ func _check_weather() -> void:
 	if asphalt != null:
 		_check(asphalt.metallic > 0.1, "wet tarmac has turned reflective (metallic %.2f)" % asphalt.metallic)
 
+	# Front moves on: snow next. The props check, seconds later, will feel it.
+	_weather.call("set_mode", Weather.Mode.SNOW)
+
 
 ## Trees, rocks and the overpass pillars are solid, not decoration.
 func _check_props() -> void:
+
 	var body := _road.get_node_or_null("PropCollision") as StaticBody3D
 	_check(body != null, "roadside props have collision")
 
@@ -411,6 +422,11 @@ func _arm_toll() -> void:
 
 
 func _check_toll() -> void:
+	# The run to the booths was on snow: grip must have dropped, and clearing
+	# the sky now must give it back for the haul ahead.
+	_check(float(_truck.call("grip_factor")) < 0.7, "snow steals the tyres' grip (%.2f)" % float(_truck.call("grip_factor")))
+	_weather.call("set_mode", Weather.Mode.CLEAR)
+
 	var plaza := _road.get_node_or_null("TollPlaza") as TollPlaza
 	_check(plaza != null, "toll plaza controller found")
 
@@ -441,6 +457,53 @@ func _arm_delivery() -> void:
 	_mission.goal_distance = target + 0.5
 	_mission.arrival_speed_kph = 200.0
 	Input.action_press("rv_throttle", 1.0)
+
+
+## Park the (delivered) truck in the fuel bay with a near-empty tank and a
+## full wallet: the pumps should fill it and bill the career.
+func _arm_gas_station() -> void:
+	var station := _road.get_node_or_null("GasStation")
+
+	if station == null:
+		return
+
+	var spot: Vector3 = station.global_position + Vector3.UP * 1.4
+	var forward: Vector3 = _road.call("direction_at", float(_road.get("gas_station_distance")))
+	var right := forward.cross(Vector3.UP).normalized()
+	_truck.global_transform = Transform3D(Basis(right, Vector3.UP, -forward), spot)
+	_truck.linear_velocity = Vector3.ZERO
+	_truck.angular_velocity = Vector3.ZERO
+
+	var fuel := _truck.get_node_or_null("FuelTank") as FuelTank
+
+	if fuel != null:
+		fuel.litres = 15.0
+
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		career.set("cash", 200)
+
+
+func _check_gas_station() -> void:
+	var station := _road.get_node_or_null("GasStation") as GasStation
+	_check(station != null, "fuel station controller found")
+
+	if station == null:
+		return
+
+	_check(station.truck_inside(), "the truck is in the fuel bay")
+	_check(station.litres_pumped > 12.0, "the pumps delivered fuel (%.1f L)" % station.litres_pumped)
+
+	var fuel := _truck.get_node_or_null("FuelTank") as FuelTank
+
+	if fuel != null:
+		_check(fuel.litres > 30.0, "the tank filled up (%.1f L)" % fuel.litres)
+
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		_check(int(career.get("cash")) < 200, "the fuel was billed to the wallet ($%d left)" % int(career.get("cash")))
 
 
 func _check_delivery() -> void:

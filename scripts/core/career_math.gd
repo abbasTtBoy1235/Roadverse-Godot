@@ -34,6 +34,78 @@ static func route_length(job_index: int) -> float:
 	return 1250.0 + float(maxi(0, job_index) % 4) * 240.0
 
 
+const ACHIEVEMENTS := [
+	{"id": "first_load", "name": "First load", "desc": "Deliver your first cargo"},
+	{"id": "flawless", "name": "White gloves", "desc": "Deliver a load with zero damage"},
+	{"id": "ten_loads", "name": "Regular hauler", "desc": "Complete 10 deliveries"},
+	{"id": "long_hauler", "name": "Long hauler", "desc": "Haul 10 km of deliveries"},
+	{"id": "sharp", "name": "Sharp operator", "desc": "Score 900 or more on one delivery"},
+	{"id": "tycoon", "name": "Fleet money", "desc": "Hold $12,000 of career cash"},
+]
+
+
+## Ids of achievements a career with these `stats` has earned but not yet
+## unlocked. Stats keys: deliveries, perfect, metres, best, cash.
+static func new_achievements(stats: Dictionary) -> Array:
+	var unlocked: Array = stats.get("unlocked", [])
+	var earned := {
+		"first_load": int(stats.get("deliveries", 0)) >= 1,
+		"flawless": int(stats.get("perfect", 0)) >= 1,
+		"ten_loads": int(stats.get("deliveries", 0)) >= 10,
+		"long_hauler": float(stats.get("metres", 0.0)) >= 10000.0,
+		"sharp": int(stats.get("best", 0)) >= 900,
+		"tycoon": int(stats.get("cash", 0)) >= 12000,
+	}
+
+	var out: Array = []
+
+	for achievement in ACHIEVEMENTS:
+		var id := String(achievement["id"])
+
+		if bool(earned.get(id, false)) and not unlocked.has(id):
+			out.append(id)
+
+	return out
+
+
+static func achievement_name(id: String) -> String:
+	for achievement in ACHIEVEMENTS:
+		if String(achievement["id"]) == id:
+			return String(achievement["name"])
+
+	return id
+
+
+## Insert one delivery result into the hall of fame: best first, top ten.
+static func leaderboard_insert(board: Array, entry: Dictionary) -> Array:
+	var out := board.duplicate()
+	out.append(entry)
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("score", 0)) > int(b.get("score", 0)))
+
+	if out.size() > 10:
+		out.resize(10)
+
+	return out
+
+
+## What kind of job it is, rotating with the job index: fragile loads break
+## easier, urgent loads pay a bonus for beating a tight clock.
+static func kind_for(job_index: int) -> String:
+	return ["standard", "fragile", "urgent"][posmod(job_index, 3)]
+
+
+static func damage_multiplier(kind: String) -> float:
+	return 2.2 if kind == "fragile" else 1.0
+
+
+static func par_scale(kind: String) -> float:
+	return 0.8 if kind == "urgent" else 1.0
+
+
+static func urgent_bonus_earned(kind: String, elapsed: float, par: float) -> bool:
+	return kind == "urgent" and elapsed <= par
+
+
 ## Cargo rotates through the list so the HUD does not read the same forever.
 static func cargo_name(job_index: int) -> String:
 	return CARGO_NAMES[posmod(job_index, CARGO_NAMES.size())]

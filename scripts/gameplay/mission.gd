@@ -28,6 +28,8 @@ enum State { DRIVING, DELIVERED, FAILED }
 @export var truck_path: NodePath
 @export var road_path: NodePath
 
+var job_kind := "standard"
+
 var state := State.DRIVING
 var elapsed := 0.0
 var damage := 0.0
@@ -81,6 +83,9 @@ func _ready() -> void:
 	if cargo_name.is_empty():
 		cargo_name = String(career.call("current_cargo")) if career != null else "Steel coils"
 
+	if career != null:
+		job_kind = String(career.call("current_kind"))
+
 	_road = get_node_or_null(road_path) as Node3D
 
 	if _road == null or not _road.has_method("nearest_distance"):
@@ -113,7 +118,8 @@ func _physics_process(delta: float) -> void:
 	_last_speed = speed
 
 	if shock > impact_threshold:
-		damage = clampf(damage + damage_for_impact(shock, damage_per_impact, impact_threshold), 0.0, 1.0)
+		var per_hit := damage_per_impact * CareerMath.damage_multiplier(job_kind)
+		damage = clampf(damage + damage_for_impact(shock, per_hit, impact_threshold), 0.0, 1.0)
 
 	if damage >= 1.0:
 		_fail()
@@ -127,8 +133,12 @@ func _finish() -> void:
 	state = State.DELIVERED
 	var summary := {}
 	# Par time scales with the haul: 95 s was generous for 560 m and
-	# impossible for 2 km.
-	score = score_for(elapsed, damage, par_seconds * maxf(1.0, goal_distance / 560.0), base_score)
+	# impossible for 2 km. Urgent jobs run a tighter clock for a bonus.
+	var effective_par := par_seconds * maxf(1.0, goal_distance / 560.0) * CareerMath.par_scale(job_kind)
+	score = score_for(elapsed, damage, effective_par, base_score)
+
+	if CareerMath.urgent_bonus_earned(job_kind, elapsed, effective_par):
+		score = roundf(score * 1.25)
 
 	if score > best_score:
 		best_score = score
@@ -142,6 +152,7 @@ func _finish() -> void:
 		"seconds": elapsed,
 		"damage": damage,
 		"cargo": cargo_name,
+		"kind": job_kind,
 		"delivered": true,
 		"fuel_used": fuel_used,
 		"fuel_bonus": bonus,
@@ -195,11 +206,12 @@ func status_text() -> String:
 	if state == State.FAILED:
 		return "%s WRECKED  ·  job lost" % cargo_name.to_upper()
 
+	var tag := "" if job_kind == "standard" else "[%s] " % job_kind.to_upper()
 	var percent := roundi(progress_fraction(progress, goal_distance) * 100.0)
 	var minutes := int(elapsed) / 60
 	var seconds := int(elapsed) % 60
 
-	return "%s  ·  %d%%  ·  %d:%02d  ·  damage %d%%" % [cargo_name.to_upper(), percent, minutes, seconds, roundi(damage * 100.0)]
+	return "%s%s  ·  %d%%  ·  %d:%02d  ·  damage %d%%" % [tag, cargo_name.to_upper(), percent, minutes, seconds, roundi(damage * 100.0)]
 
 
 ## The gate itself: two posts, a beam and a lit sign, built from code.

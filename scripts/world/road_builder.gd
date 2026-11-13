@@ -89,10 +89,25 @@ var toll_distance := 0.0
 var toll_booth_count := 0
 ## Lateral position of the inner booth islands: sets the centre-lane width.
 var toll_inner_island_x := 0.0
+## Signalised crossings in the two cities. Test hooks.
+var crossing_distances: Array[float] = []
+var signal_pole_count := 0
+
+var _signal_time := 0.0
+var _signal_phase := 0
+var _signal_red: StandardMaterial3D
+var _signal_yellow: StandardMaterial3D
+var _signal_green: StandardMaterial3D
+
 ## Road distance of every city block (downtown past the end counts as the
 ## full length). Instance transforms cannot be read back headlessly, so the
 ## layout is recorded here. Test hook.
 var city_block_distances: Array[float] = []
+## The fuel stop between the origin city and the toll. Test hooks.
+var gas_station_position := Vector3.ZERO
+var gas_station_distance := 0.0
+var gas_pump_count := 0
+
 ## Freight depots: where loads are picked up and dropped off. Test hooks.
 var loading_depot_position := Vector3.ZERO
 var delivery_depot_position := Vector3.ZERO
@@ -155,6 +170,7 @@ func build() -> void:
 	_build_distant_hills()
 	_build_city_glow()
 	_build_depots()
+	_build_gas_station()
 	_build_prop_collision()
 	_build_collision()
 
@@ -1069,6 +1085,7 @@ func _build_city_glow() -> void:
 	_add_multimesh("CityTiers", mesh, _city_glow, tier_transforms)
 	city_tier_count = tier_transforms.size()
 	_build_city_avenues(zones, pitch)
+	_build_crossings(zones)
 	_build_city_streets(end_point, end_direction, end_right)
 	_build_city_windows(transforms, road_points, rng)
 
@@ -1155,6 +1172,112 @@ func _build_city_avenues(zones: Array, pitch: float) -> void:
 	_add_multimesh("CityLampPoles", pole_mesh, _metal, pole_transforms)
 	_add_multimesh("CityLampBulbs", bulb_mesh, _lamp_glass, bulb_transforms)
 	city_lamp_count = bulb_transforms.size()
+
+
+## One signal cycle for every crossing: 8 s green, 2 s amber, 6 s red.
+static func signal_phase_at(t: float) -> int:
+	var cycle := fposmod(t, 16.0)
+
+	if cycle < 8.0:
+		return 0
+
+	return 1 if cycle < 10.0 else 2
+
+
+## 0 = green, 1 = amber, 2 = red (for road traffic).
+func current_signal_phase() -> int:
+	return _signal_phase
+
+
+func _apply_signal_phase() -> void:
+	if _signal_red == null:
+		return
+
+	_signal_red.emission_energy_multiplier = 3.2 if _signal_phase == 2 else 0.06
+	_signal_yellow.emission_energy_multiplier = 3.2 if _signal_phase == 1 else 0.06
+	_signal_green.emission_energy_multiplier = 3.2 if _signal_phase == 0 else 0.06
+
+
+## Zebra crossings with signal poles in both cities: two per city, on the
+## cross streets. Pedestrians use the red phase to get across.
+func _build_crossings(zones: Array) -> void:
+	_signal_red = _mat(Color(0.45, 0.05, 0.05), 0.4)
+	_signal_red.emission_enabled = true
+	_signal_red.emission = Color(1.0, 0.12, 0.1)
+
+	_signal_yellow = _mat(Color(0.45, 0.32, 0.05), 0.4)
+	_signal_yellow.emission_enabled = true
+	_signal_yellow.emission = Color(1.0, 0.7, 0.12)
+
+	_signal_green = _mat(Color(0.05, 0.4, 0.12), 0.4)
+	_signal_green.emission_enabled = true
+	_signal_green.emission = Color(0.2, 1.0, 0.4)
+
+	_apply_signal_phase()
+
+	var stripe_mesh := BoxMesh.new()
+	stripe_mesh.size = Vector3(1.2, 0.04, 3.6)
+
+	var pole_mesh := CylinderMesh.new()
+	pole_mesh.top_radius = 0.07
+	pole_mesh.bottom_radius = 0.1
+	pole_mesh.height = 3.8
+	pole_mesh.radial_segments = 6
+
+	var head_mesh := BoxMesh.new()
+	head_mesh.size = Vector3(0.34, 1.05, 0.34)
+
+	var lamp_mesh := SphereMesh.new()
+	lamp_mesh.radius = 0.11
+	lamp_mesh.height = 0.22
+	lamp_mesh.radial_segments = 6
+	lamp_mesh.rings = 3
+
+	for zone in zones:
+		var zone_start: float = zone[0]
+		var zone_end: float = zone[1]
+
+		for fraction: float in [0.35, 0.75]:
+			var distance := lerpf(zone_start, zone_end, fraction)
+			crossing_distances.append(distance)
+
+			var stripe_lat := -7.5
+
+			while stripe_lat <= 7.5:
+				var stripe := MeshInstance3D.new()
+				stripe.mesh = stripe_mesh
+				stripe.material_override = _paint
+				stripe.transform = Transform3D(_basis(distance), _place(distance, stripe_lat, 0.03))
+				add_child(stripe)
+				stripe_lat += 2.5
+
+			for side: float in [-1.0, 1.0]:
+				var corner := _place(distance, side * 11.5, 0.0)
+
+				var pole := MeshInstance3D.new()
+				pole.mesh = pole_mesh
+				pole.material_override = _metal
+				pole.transform = Transform3D(_basis(distance), corner + Vector3.UP * 1.9)
+				add_child(pole)
+
+				var head := MeshInstance3D.new()
+				head.mesh = head_mesh
+				head.material_override = _metal
+				head.transform = Transform3D(_basis(distance), corner + Vector3.UP * 3.9)
+				add_child(head)
+
+				var lamp_mats: Array = [_signal_red, _signal_yellow, _signal_green]
+
+				for lamp_i in 3:
+					var lamp := MeshInstance3D.new()
+					lamp.mesh = lamp_mesh
+					lamp.material_override = lamp_mats[lamp_i]
+					lamp.transform = Transform3D(_basis(distance),
+						_place(distance, side * 11.5 - side * 0.24, 4.22 - float(lamp_i) * 0.32))
+					add_child(lamp)
+
+				prop_spots.append({"position": corner + Vector3.UP * 1.9, "radius": 0.3})
+				signal_pole_count += 1
 
 
 ## The toll plaza, roughly halfway between the town you leave and the city
@@ -1678,7 +1801,14 @@ static func beacon_energy(time: float) -> float:
 	return 0.35 + 0.65 * (0.5 + 0.5 * sin(time * 2.2))
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_signal_time += delta
+	var phase := signal_phase_at(_signal_time)
+
+	if phase != _signal_phase:
+		_signal_phase = phase
+		_apply_signal_phase()
+
 	if _beacon_material == null:
 		return
 
@@ -1716,6 +1846,124 @@ func direction_at(distance: float) -> Vector3:
 
 
 ## Solid props: trees, rocks and the overpass pillars.
+
+
+## A filling station at the roadside: canopy, six pumps, a small shop and
+## a price board. The GasStation area does the actual pumping.
+func _build_gas_station() -> void:
+	gas_station_distance = _baked_length * 0.35
+
+	var station := GasStation.new()
+	station.name = "GasStation"
+	station.transform = Transform3D(_basis(gas_station_distance), _place(gas_station_distance, 40.0, 0.0))
+	add_child(station)
+	gas_station_position = station.transform.origin
+
+	var slab_mesh := BoxMesh.new()
+	slab_mesh.size = Vector3(52.0, 0.14, 36.0)
+
+	var slab := MeshInstance3D.new()
+	slab.mesh = slab_mesh
+	slab.material_override = _concrete
+	slab.position = Vector3(0.0, 0.07, 0.0)
+	station.add_child(slab)
+
+	# Canopy on four pillars.
+	var pillar_mesh := CylinderMesh.new()
+	pillar_mesh.top_radius = 0.14
+	pillar_mesh.bottom_radius = 0.18
+	pillar_mesh.height = 5.2
+	pillar_mesh.radial_segments = 8
+
+	for px: float in [-13.0, 13.0]:
+		for pz: float in [-6.5, 6.5]:
+			var pillar := MeshInstance3D.new()
+			pillar.mesh = pillar_mesh
+			pillar.material_override = _metal
+			pillar.position = Vector3(px, 2.6, pz)
+			station.add_child(pillar)
+			prop_spots.append({"position": station.transform * pillar.position, "radius": 0.35})
+
+	var canopy_mesh := BoxMesh.new()
+	canopy_mesh.size = Vector3(32.0, 0.4, 17.0)
+
+	var canopy := MeshInstance3D.new()
+	canopy.name = "Canopy"
+	canopy.mesh = canopy_mesh
+	canopy.material_override = _mat(Color(0.75, 0.2, 0.12), 0.55)
+	canopy.position = Vector3(0.0, 5.3, 0.0)
+	station.add_child(canopy)
+
+	# Three islands, two pumps each.
+	var island_mesh := BoxMesh.new()
+	island_mesh.size = Vector3(4.6, 0.22, 1.1)
+
+	var pump_mesh := BoxMesh.new()
+	pump_mesh.size = Vector3(0.62, 1.25, 0.45)
+
+	var pump_mat := _mat(Color(0.8, 0.82, 0.85), 0.35)
+	pump_mat.metallic = 0.6
+
+	for i in 3:
+		var island_pos := Vector3(-9.0 + float(i) * 9.0, 0.11, 0.0)
+
+		var island := MeshInstance3D.new()
+		island.mesh = island_mesh
+		island.material_override = _concrete
+		island.position = island_pos
+		station.add_child(island)
+
+		for px: float in [-1.4, 1.4]:
+			var pump := MeshInstance3D.new()
+			pump.mesh = pump_mesh
+			pump.material_override = pump_mat
+			pump.position = island_pos + Vector3(px, 0.85, 0.0)
+			station.add_child(pump)
+			gas_pump_count += 1
+
+		prop_spots.append({
+			"position": station.transform * island_pos,
+			"radius": 1.0,
+			"box": Vector3(4.6, 1.6, 1.1),
+			"basis": _basis(gas_station_distance),
+		})
+
+	# The shop behind the pumps.
+	var shop_mesh := BoxMesh.new()
+	shop_mesh.size = Vector3(18.0, 4.6, 9.0)
+
+	var shop := MeshInstance3D.new()
+	shop.name = "Shop"
+	shop.mesh = shop_mesh
+	shop.material_override = _mat(Color(0.3, 0.28, 0.24), 0.8)
+	shop.position = Vector3(8.0, 2.3, -13.0)
+	station.add_child(shop)
+
+	prop_spots.append({
+		"position": station.transform * shop.position,
+		"radius": 1.0,
+		"box": Vector3(18.0, 4.6, 9.0),
+		"basis": _basis(gas_station_distance),
+	})
+
+	var sign := Label3D.new()
+	sign.name = "FuelSign"
+	sign.text = "FUEL"
+	sign.font_size = 180
+	sign.pixel_size = 0.01
+	sign.modulate = Color(1.0, 0.45, 0.25)
+	sign.position = Vector3(0.0, 6.4, 9.2)
+	station.add_child(sign)
+
+	var price := Label3D.new()
+	price.name = "PriceSign"
+	price.text = "DIESEL $2/L"
+	price.font_size = 96
+	price.pixel_size = 0.01
+	price.modulate = Color(0.95, 0.9, 0.8)
+	price.position = Vector3(-20.0, 4.6, 14.6)
+	station.add_child(price)
+
 
 ## Freight depots: a big warehouse, a dock canopy, a marked bay and stacks
 ## of containers — one in the loading city where every job starts, one in

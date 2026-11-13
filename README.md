@@ -68,19 +68,19 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
 | `tests/test_day_cycle.gd` | day/night model — 26 checks |
-| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities and the depots — 168 checks |
+| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots and signals — 177 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
 | `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 55 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 8 checks |
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap and car-following maths — 17 checks |
-| `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
+| `tests/test_weather_noise.gd` | tyre, wind, fog, wetness and grip maths — 20 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
-| `tests/test_career.gd` | routes, pay, ranks, fuel economy and camera shake maths — 37 checks |
+| `tests/test_career.gd` | routes, pay, ranks, job kinds, leaderboard and achievements — 56 checks |
 | `tests/drive_state.tscn` | wheels, audio, traffic, rain, barriers, props, a full delivery, the payout, the fuel burn, the fitted truck model and no second trailer |
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**488 checks total.** The same suite runs on every push in GitHub Actions
+**528 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -140,6 +140,8 @@ throttle via `Input.action_press`, and asserts that the truck:
 | City glow | emissive skyline past the end of the road, picked up by the glow pass |
 | Two cities | a lower-rise loading city over the first quarter of the route and a taller delivery city over the last third — six building columns deep per side, with open country and the toll between them |
 | Freight depots | a warehouse, dock canopy, marked loading bay and container stacks in each city: `LOADING DEPOT` where every job starts, `DELIVERY DEPOT` beside the destination gate |
+| Traffic signals | two signalised zebra crossings per city on a 16 s cycle; pedestrians cross on the red phase |
+| Fuel station | canopy, six pumps and a shop at 35% of the route — park in the bay and the pumps fill the tank at $2/L, billed to the career wallet |
 | Traffic | 17 NPC cars and vans looping both lanes, with spinning wheels, brake lamps and headlights |
 | Barrier | the guardrails are real collision boxes, so the truck bounces off instead of driving through |
 | City | 400+ blocks across the two cities and the downtown beyond the end, on a real street grid with avenues and cross streets, 8,200 lit windows, 12 tower beacons |
@@ -196,6 +198,13 @@ is used and nothing else changes. Requirements (format, axis, scale, licence) ar
 - Saved in `user://career.cfg` — job number, cash, deliveries and best score.
 - Start over by deleting that file, or `Career.reset_progress()`.
 
+Jobs also come in kinds, rotating with the job index: **standard**, **fragile**
+(damage per hit ×2.2) and **urgent** (a 20% tighter par clock, +25% score for
+beating it). Every delivery enters a persistent **top-ten leaderboard**, and
+**achievements** (first load, a flawless run, 10 deliveries, 10 km hauled, a
+900+ score, $12,000 held) unlock as the career grows — both live in the menu's
+CAREER panel, and fresh unlocks are announced on the results screen.
+
 ## The job
 
 - A delivery is a **gate at the far end of the road** (92% of the way along) plus a load in the
@@ -235,11 +244,13 @@ directions, wrapping at the ends of the road so the roadside never empties.
 
 ## Rain and barriers
 
-- **`F` toggles rain.** `Weather` spawns CPU particles in a box around the truck and drags them
+- **`F` cycles the weather:** clear → rain → snow → fog. `Weather` spawns CPU particles in a box around the truck and drags them
   with it, so the rain is always where you are. The wetness value eases in over about a second:
   while it rises, `RoadBuilder.set_wetness()` lowers the asphalt roughness (0.95 → 0.16) and
   raises metallic (0 → 0.6), which is what turns the tarmac into a mirror under the lamps.
-  Fog density follows at the same time.
+  Fog density follows at the same time — and it is a pea-souper in fog mode.
+- **Weather steals grip.** The truck scales every wheel's friction slip by the front it is
+  driving through: dry 1.0, wet rain down to 0.75, snow 0.55. Snow means braking early.
 - **The guardrails are physics.** ~512 boxes follow the curve at the rail's lateral offset,
   parented to one `StaticBody3D`. They are 1.25 m tall, so the truck leans on them instead of
   driving off the edge into the void.

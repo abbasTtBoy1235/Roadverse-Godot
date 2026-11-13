@@ -104,6 +104,16 @@ func _on_delivered(summary: Dictionary) -> void:
 		best, rank,
 	]
 
+	var fresh: Array = summary.get("achievements", [])
+
+	if not fresh.is_empty():
+		var names: Array = []
+
+		for name in fresh:
+			names.append(String(name))
+
+		_lines.text += "\n🏆 Unlocked: %s" % ", ".join(PackedStringArray(names))
+
 	_action.text = "NEXT JOB  (Enter)"
 	_hint.text = "Press Enter to take the next route."
 	_show()

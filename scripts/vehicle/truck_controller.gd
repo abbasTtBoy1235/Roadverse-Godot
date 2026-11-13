@@ -40,6 +40,10 @@ var _steer := 0.0
 var _wheel_radius := 0.5
 var _lights: TruckLights
 var _fuel: FuelTank
+var _all_wheels: Array[VehicleWheel3D] = []
+var _base_friction := 3.0
+var _grip := 1.0
+var _weather: Node
 
 
 func _ready() -> void:
@@ -49,6 +53,10 @@ func _ready() -> void:
 	_fuel = get_node_or_null("FuelTank") as FuelTank
 
 	for child in get_children():
+		if child is VehicleWheel3D:
+			_all_wheels.append(child)
+			_base_friction = child.wheel_friction_slip
+
 		if child is VehicleWheel3D and child.use_as_traction:
 			_traction_wheels.append(child)
 			_wheel_radius = child.wheel_radius
@@ -64,6 +72,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_apply_weather_grip()
 	_read_gear_input()
 	_apply_engine_and_brakes()
 	_apply_steering(delta)
@@ -73,6 +82,31 @@ func _physics_process(delta: float) -> void:
 
 	if _lights != null:
 		_lights.set_brake_lights(brake > 0.1)
+
+
+## Snow and rain steal tyre grip: scale every wheel's friction slip by what
+## the weather is doing. Dry tarmac is the scene value, untouched.
+func _apply_weather_grip() -> void:
+	if _weather == null:
+		_weather = get_tree().get_first_node_in_group("rv_weather")
+
+	if _weather == null or not _weather.has_method("grip_factor"):
+		return
+
+	var grip := clampf(float(_weather.call("grip_factor")), 0.3, 1.0)
+
+	if absf(grip - _grip) < 0.01:
+		return
+
+	_grip = grip
+
+	for wheel in _all_wheels:
+		wheel.wheel_friction_slip = _base_friction * _grip
+
+
+## Test hook: grip multiplier currently on the tyres.
+func grip_factor() -> float:
+	return _grip
 
 
 func _read_gear_input() -> void:

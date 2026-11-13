@@ -11,6 +11,10 @@ var job_index := 0
 var cash := 0
 var jobs_done := 0
 var best_score := 0
+var total_metres := 0.0
+var perfect_runs := 0
+var unlocked_achievements: Array = []
+var leaderboard: Array = []
 var last_summary: Dictionary = {}
 
 
@@ -20,6 +24,10 @@ func _ready() -> void:
 
 func current_cargo() -> String:
 	return CareerMath.cargo_name(job_index)
+
+
+func current_kind() -> String:
+	return CareerMath.kind_for(job_index)
 
 
 func current_seed() -> int:
@@ -44,8 +52,32 @@ func record_delivery(summary: Dictionary) -> void:
 	cash += paid
 	jobs_done += 1
 	best_score = maxi(best_score, int(roundf(float(summary.get("score", 0.0)))))
+	total_metres += float(summary.get("route_metres", 0.0))
+
+	if float(summary.get("damage", 0.0)) <= 0.001:
+		perfect_runs += 1
+
+	leaderboard = CareerMath.leaderboard_insert(leaderboard, {
+		"score": int(roundf(float(summary.get("score", 0.0)))),
+		"cargo": String(summary.get("cargo", "Cargo")),
+		"kind": String(summary.get("kind", "standard")),
+		"seconds": int(roundf(float(summary.get("seconds", 0.0)))),
+	})
+
 	last_summary = run
 	last_summary["paid"] = paid
+
+	var fresh := CareerMath.new_achievements({
+		"deliveries": jobs_done, "perfect": perfect_runs, "metres": total_metres,
+		"best": best_score, "cash": cash, "unlocked": unlocked_achievements,
+	})
+	var fresh_names: Array = []
+
+	for id in fresh:
+		unlocked_achievements.append(id)
+		fresh_names.append(CareerMath.achievement_name(String(id)))
+
+	last_summary["achievements"] = fresh_names
 
 	job_index += 1
 	save_progress()
@@ -73,6 +105,10 @@ func save_progress() -> void:
 	config.set_value("career", "cash", cash)
 	config.set_value("career", "jobs_done", jobs_done)
 	config.set_value("career", "best_score", best_score)
+	config.set_value("career", "total_metres", total_metres)
+	config.set_value("career", "perfect_runs", perfect_runs)
+	config.set_value("career", "achievements", ",".join(PackedStringArray(unlocked_achievements)))
+	config.set_value("career", "leaderboard", JSON.stringify(leaderboard))
 	config.save(SAVE_PATH)
 
 
@@ -86,6 +122,14 @@ func load_progress() -> void:
 	cash = int(config.get_value("career", "cash", 0))
 	jobs_done = int(config.get_value("career", "jobs_done", 0))
 	best_score = int(config.get_value("career", "best_score", 0))
+	total_metres = float(config.get_value("career", "total_metres", 0.0))
+	perfect_runs = int(config.get_value("career", "perfect_runs", 0))
+
+	var saved_achievements := String(config.get_value("career", "achievements", ""))
+	unlocked_achievements = [] if saved_achievements.is_empty() else Array(saved_achievements.split(","))
+
+	var saved_board = JSON.parse_string(String(config.get_value("career", "leaderboard", "[]")))
+	leaderboard = saved_board if saved_board is Array else []
 
 
 func reset_progress() -> void:
@@ -93,5 +137,9 @@ func reset_progress() -> void:
 	cash = 0
 	jobs_done = 0
 	best_score = 0
+	total_metres = 0.0
+	perfect_runs = 0
+	unlocked_achievements = []
+	leaderboard = []
 	last_summary = {}
 	save_progress()

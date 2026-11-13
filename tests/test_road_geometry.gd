@@ -159,6 +159,7 @@ func _check_route_furniture(road: Node3D) -> void:
 	_check(road.gas_station_distance > length * 0.24 and road.gas_station_distance < road.toll_distance,
 		"the fuel station sits between the origin city and the toll (%.0f m)" % road.gas_station_distance)
 	_check(road.get_node_or_null("GasStation/Shop") != null, "the fuel station was built")
+	_check(road.halo_count >= 100, "every lamp wears a glow halo (%d)" % road.halo_count)
 
 	_check(road.get_node_or_null("LoadingDepot/Warehouse") != null, "the loading depot was built")
 	_check(road.get_node_or_null("DeliveryDepot/Warehouse") != null, "the delivery depot was built")

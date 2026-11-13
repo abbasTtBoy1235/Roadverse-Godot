@@ -89,6 +89,12 @@ var toll_distance := 0.0
 var toll_booth_count := 0
 ## Lateral position of the inner booth islands: sets the centre-lane width.
 var toll_inner_island_x := 0.0
+## Glow halos around every lamp bulb. Test hook.
+var halo_count := 0
+
+var _bulb_positions: Array[Vector3] = []
+var _halo_material: StandardMaterial3D
+
 ## Signalised crossings in the two cities. Test hooks.
 var crossing_distances: Array[float] = []
 var signal_pole_count := 0
@@ -171,6 +177,7 @@ func build() -> void:
 	_build_city_glow()
 	_build_depots()
 	_build_gas_station()
+	_build_halos()
 	_build_prop_collision()
 	_build_collision()
 
@@ -438,6 +445,9 @@ func apply_time_of_day(night_factor: float) -> void:
 	if _lamp_glass != null:
 		_lamp_glass.emission_energy_multiplier = lerpf(0.12, 4.5, lamp_level)
 
+	if _halo_material != null:
+		_halo_material.albedo_color = Color(1.0, 0.85, 0.6, 0.34 * lamp_level)
+
 	if _window_mat != null:
 		_window_mat.emission_energy_multiplier = lerpf(0.1, 2.4, lamp_level)
 
@@ -553,6 +563,7 @@ func _build_lamps() -> void:
 		pole_transforms.append(Transform3D(basis, base + Vector3.UP * 4.5))
 		arm_transforms.append(Transform3D(basis, _place(offset, side * lateral + reach * 0.5, 8.85)))
 		bulb_transforms.append(Transform3D(basis, _place(offset, side * lateral + reach, 8.6)))
+		_bulb_positions.append(_place(offset, side * lateral + reach, 8.6))
 
 		var light := OmniLight3D.new()
 		light.name = "Lamp%d" % index
@@ -1166,6 +1177,7 @@ func _build_city_avenues(zones: Array, pitch: float) -> void:
 				var basis := _basis(lamp_distance)
 				pole_transforms.append(Transform3D(basis, _place(lamp_distance, lateral, 3.25)))
 				bulb_transforms.append(Transform3D(basis, _place(lamp_distance, lateral, 6.4)))
+				_bulb_positions.append(_place(lamp_distance, lateral, 6.4))
 
 			lamp_distance += 26.0
 
@@ -2125,6 +2137,48 @@ func _build_depot(node_name: String, distance: float, side: float, label: String
 	wall_sign.rotation.y = -PI * 0.5
 	wall_sign.position = Vector3(10.7, 8.6, 0.0)
 	depot.add_child(wall_sign)
+
+
+## A soft billboard halo on every lamp: the cheapest night-magic there is.
+## One multimesh, one additive material, brightness driven by lamp_level.
+func _build_halos() -> void:
+	if _bulb_positions.is_empty():
+		return
+
+	_halo_material = StandardMaterial3D.new()
+	_halo_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_halo_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_halo_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_halo_material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	_halo_material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	_halo_material.albedo_texture = _glow_texture()
+	_halo_material.albedo_color = Color(1.0, 0.85, 0.6, 0.0)
+
+	var quad := QuadMesh.new()
+	quad.size = Vector2(2.6, 2.6)
+
+	var transforms: Array[Transform3D] = []
+
+	for position in _bulb_positions:
+		transforms.append(Transform3D(Basis(), position))
+
+	_add_multimesh("LampHalos", quad, _halo_material, transforms)
+	halo_count = transforms.size()
+
+
+## Radial falloff sprite, drawn once: white core fading to nothing.
+static func _glow_texture() -> ImageTexture:
+	var size := 64
+	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var centre := Vector2(size, size) * 0.5
+
+	for y in size:
+		for x in size:
+			var d := Vector2(x, y).distance_to(centre) / (float(size) * 0.5)
+			var a := pow(clampf(1.0 - d, 0.0, 1.0), 2.2)
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, a))
+
+	return ImageTexture.create_from_image(image)
 
 
 func _build_prop_collision() -> void:

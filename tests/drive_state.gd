@@ -308,6 +308,8 @@ func _check_steering() -> void:
 
 	if lights != null:
 		_check(lights.indicator_lamp_count() == 0, "no bolt-on indicator lamps: the truck uses its own (%d)" % lights.indicator_lamp_count())
+		_check(lights.headlight_cone_count() >= 2, "the headlights carry beam cones (%d)" % lights.headlight_cone_count())
+		_check(lights.cones_visible() == lights.headlights_on, "the beam cones follow the headlight switch")
 
 
 ## Fires a ray from the truck straight at the nearest piece of guardrail: it must

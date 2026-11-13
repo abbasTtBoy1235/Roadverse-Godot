@@ -121,6 +121,13 @@ func _build_sky() -> void:
 	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_BG
 	_environment.reflected_light_source = Environment.REFLECTION_SOURCE_BG
 
+	# Gentle filmic-style grade: a touch of contrast and saturation so the
+	# flat-shaded world reads richer at both noon and midnight.
+	_environment.adjustment_enabled = true
+	_environment.adjustment_brightness = 1.03
+	_environment.adjustment_contrast = 1.07
+	_environment.adjustment_saturation = 1.10
+
 	# Volumetric fog is what lets headlights and lamps carve visible cones
 	# out of the night. Only worth its cost above the low quality tier.
 	_environment.volumetric_fog_enabled = Settings.quality >= 1

@@ -136,6 +136,12 @@ func _check_game_scene() -> void:
 	_check(game.get_node_or_null("HUD") != null, "game scene has a HUD")
 	_check(game.get_node_or_null("TimeOfDay") != null, "game scene has a day/night driver")
 
+	var tod := game.get_node_or_null("TimeOfDay")
+
+	if tod != null:
+		_check(bool(tod.get("sky_built")), "the procedural sky is installed")
+		_check(float(tod.call("star_amount")) < 0.1, "no stars at the 07:00 start (%.2f)" % float(tod.call("star_amount")))
+
 	var pause_menu := game.get_node_or_null("PauseMenu")
 	_check(pause_menu != null, "game scene has a pause menu")
 

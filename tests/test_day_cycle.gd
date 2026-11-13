@@ -80,6 +80,14 @@ func _test_clock_string() -> void:
 func _test_sky_and_dimmers() -> void:
 	_check(_near(DayCycle.night_factor(0.0), 1.0), "night factor is 1 at midnight")
 	_check(_near(DayCycle.night_factor(12.0), 0.0), "night factor is 0 at noon")
+
+	# The procedural sky's gradient stops.
+	_check(DayCycle.sky_top_color(12.0).get_luminance() < DayCycle.sky_horizon_color(12.0).get_luminance(),
+		"the midday zenith is deeper than the horizon")
+	_check(DayCycle.sky_top_color(0.0).get_luminance() < 0.05, "the midnight zenith is nearly black (%.3f)" % DayCycle.sky_top_color(0.0).get_luminance())
+	_check(DayCycle.sky_horizon_color(6.0).r > DayCycle.sky_horizon_color(6.0).b,
+		"the horizon burns warm at sunrise (r %.2f > b %.2f)" % [DayCycle.sky_horizon_color(6.0).r, DayCycle.sky_horizon_color(6.0).b])
+	_check(DayCycle.sky_horizon_color(12.0).b > DayCycle.sky_horizon_color(12.0).r, "the midday horizon is blue")
 	_check(DayCycle.sky_color(13.0).v > DayCycle.sky_color(1.0).v, "the daytime sky is brighter than the night sky")
 	_check(DayCycle.sky_color(6.0).r > DayCycle.sky_color(6.0).b, "the sunrise sky warms up (r %.2f > b %.2f)" % [DayCycle.sky_color(6.0).r, DayCycle.sky_color(6.0).b])
 	_check(DayCycle.glow_intensity(0.0) > DayCycle.glow_intensity(12.0), "bloom is stronger at night")

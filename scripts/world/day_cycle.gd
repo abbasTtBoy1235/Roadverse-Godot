@@ -64,6 +64,25 @@ static func sky_color(hour: float) -> Color:
 	return colour.lerp(DUSK_SKY, dusk * 0.5)
 
 
+## Zenith colour for the procedural sky.
+static func sky_top_color(hour: float) -> Color:
+	var colour := Color(0.004, 0.008, 0.025).lerp(Color(0.25, 0.47, 0.85), day_factor(hour))
+	var dusk := clampf(1.0 - absf(sun_elevation(hour)) / 16.0, 0.0, 1.0)
+	return colour.lerp(Color(0.35, 0.25, 0.38), dusk * 0.35)
+
+
+## Horizon colour: where sunrise and sunset actually burn.
+static func sky_horizon_color(hour: float) -> Color:
+	var colour := Color(0.03, 0.05, 0.10).lerp(Color(0.62, 0.74, 0.92), day_factor(hour))
+	var dusk := clampf(1.0 - absf(sun_elevation(hour)) / 16.0, 0.0, 1.0)
+	return colour.lerp(DUSK_SKY, dusk * 0.85)
+
+
+## Below-horizon haze the sky shader fades to.
+static func sky_ground_color(hour: float) -> Color:
+	return Color(0.010, 0.012, 0.020).lerp(Color(0.45, 0.50, 0.55), day_factor(hour))
+
+
 ## Bloom sells the night; in daylight it just washes the sky out.
 static func glow_intensity(hour: float) -> float:
 	return lerpf(0.55, 0.12, day_factor(hour))

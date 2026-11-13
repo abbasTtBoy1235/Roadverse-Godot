@@ -67,10 +67,10 @@ That runs three steps headlessly:
 |---|---|
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
-| `tests/test_day_cycle.gd` | day/night model — 26 checks |
+| `tests/test_day_cycle.gd` | day/night model and sky gradient — 30 checks |
 | `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots and signals — 177 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
-| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 55 checks |
+| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 57 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 8 checks |
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap and car-following maths — 17 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog, wetness and grip maths — 20 checks |
@@ -80,7 +80,7 @@ That runs three steps headlessly:
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**528 checks total.** The same suite runs on every push in GitHub Actions
+**534 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -306,6 +306,10 @@ truck and camera stays between 5 m and 30 m the whole time; that is the regressi
 ## Day / night cycle
 
 `TimeOfDay` drives the sun, moon, sky colour, ambient light, fog and bloom from `DayCycle`, a
+procedural sky shader (`scripts/world/sky.gdshader`) paints a DayCycle-driven gradient with
+sun and moon discs and hash-based stars that fade in at night, the environment's ambient and
+reflected light come from that sky, and volumetric fog (quality tier permitting) lets lamps
+and headlights cut visible cones through the dark.
 pure model (hour 0..24 in, light parameters out) that is unit tested. One `night_factor` dimmer
 is broadcast to everything that glows — street lamps, lamp glass, the 4,200 city windows, the
 skyline, tower beacons and NPC headlights — so dawn and dusk happen everywhere at once: lamps

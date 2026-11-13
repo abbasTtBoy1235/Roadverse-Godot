@@ -15,9 +15,14 @@ extends Node
 
 var hour := 0.0
 
+## True once the procedural sky is installed. Test hook.
+var sky_built := false
+
 var _sun: DirectionalLight3D
 var _moon: DirectionalLight3D
 var _environment: Environment
+var _sky_material: ShaderMaterial
+var _star_amount := 0.0
 
 
 func _ready() -> void:
@@ -34,6 +39,10 @@ func _ready() -> void:
 	if _sun == null:
 		push_warning("TimeOfDay: sun_path is not set, the sun will not move.")
 
+	if _sun != null:
+		_sun.directional_shadow_max_distance = 280.0
+
+	_build_sky()
 	_apply()
 
 
@@ -61,6 +70,19 @@ func _apply() -> void:
 	if _moon != null:
 		_moon.rotation_degrees = Vector3(DayCycle.sun_pitch_degrees(hour) + 180.0, 35.0, 0.0)
 
+	if _environment != null and _sky_material != null:
+		_sky_material.set_shader_parameter("top_color", DayCycle.sky_top_color(hour))
+		_sky_material.set_shader_parameter("horizon_color", DayCycle.sky_horizon_color(hour))
+		_sky_material.set_shader_parameter("ground_color", DayCycle.sky_ground_color(hour))
+		_sky_material.set_shader_parameter("star_amount", DayCycle.night_factor(hour))
+		_star_amount = DayCycle.night_factor(hour)
+
+		if _sun != null:
+			_sky_material.set_shader_parameter("sun_direction", _sun.global_basis.z.normalized())
+
+		if _moon != null:
+			_sky_material.set_shader_parameter("moon_direction", _moon.global_basis.z.normalized())
+
 	if _environment != null:
 		_environment.background_color = DayCycle.sky_color(hour)
 		_environment.ambient_light_energy = DayCycle.ambient_energy(hour)
@@ -76,6 +98,41 @@ func _apply() -> void:
 	for node in get_tree().get_nodes_in_group("rv_time_aware"):
 		if node.has_method("apply_time_of_day"):
 			node.call("apply_time_of_day", night)
+
+
+## Installs the procedural sky and makes the ambient/reflection light come
+## from it, so dawn colours bounce onto the world instead of a flat tint.
+func _build_sky() -> void:
+	if _environment == null:
+		return
+
+	var shader := load("res://scripts/world/sky.gdshader") as Shader
+
+	if shader == null:
+		return
+
+	_sky_material = ShaderMaterial.new()
+	_sky_material.shader = shader
+
+	var sky := Sky.new()
+	sky.sky_material = _sky_material
+	_environment.sky = sky
+	_environment.background_mode = Environment.BG_SKY
+	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_BG
+	_environment.reflected_light_source = Environment.REFLECTION_SOURCE_BG
+
+	# Volumetric fog is what lets headlights and lamps carve visible cones
+	# out of the night. Only worth its cost above the low quality tier.
+	_environment.volumetric_fog_enabled = Settings.quality >= 1
+	_environment.volumetric_fog_density = 0.012
+	_environment.volumetric_fog_sky_affect = 0.25
+
+	sky_built = true
+
+
+## Test hook: how starry the sky is right now (0 by day, 1 at night).
+func star_amount() -> float:
+	return _star_amount
 
 
 ## 0..24, for the HUD.

@@ -15,6 +15,17 @@ extends Node3D
 @export var mesh_step := 2.5
 @export var seed_value := 20261112
 
+@export_group("Route profile")
+## Set by the game from the career's route profile: how curvy, how
+## dense the scenery, and which cities the signs announce.
+@export var bend_scale := 1.0
+@export var wave_scale := 1.0
+@export var tree_scale := 1.0
+@export var rock_scale := 1.0
+@export var lake_scale := 1.0
+@export var start_city := "NORTHGATE"
+@export var end_city := "SOUTHPORT"
+
 @export_group("Markings")
 @export var edge_line_offset := 0.42
 @export var dash_length := 4.0
@@ -209,11 +220,11 @@ func _generate_curve() -> Curve3D:
 
 	for i in points + 1:
 		var travelled := float(i) / float(points) * road_length
-		var wave := sin(travelled * 0.011 + phase_a) * 0.62 + sin(travelled * 0.027 + phase_b) * 0.38
+		var wave := sin(travelled * 0.011 * wave_scale + phase_a) * 0.62 + sin(travelled * 0.027 * wave_scale + phase_b) * 0.38
 		# Ramp the bend in so the road starts exactly at the origin, where the
 		# truck spawns.
 		var ramp := clampf(travelled / 60.0, 0.0, 1.0)
-		result.add_point(Vector3(wave * bend_amplitude * ramp, 0.0, -travelled))
+		result.add_point(Vector3(wave * bend_amplitude * bend_scale * ramp, 0.0, -travelled))
 
 	return result
 
@@ -657,7 +668,7 @@ func _build_trees() -> void:
 			prop_spots.append({"position": base, "radius": 0.55 * scale})
 			canopy_transforms.append(Transform3D(basis, base + Vector3.UP * (4.6 * scale + 2.4 * scale)))
 
-		offset += tree_spacing
+		offset += tree_spacing / maxf(0.1, tree_scale)
 
 	_add_multimesh("TreeTrunks", trunk_mesh, _bark, trunk_transforms)
 	_add_multimesh("TreeCanopies", canopy_mesh, _leaves, canopy_transforms)
@@ -683,7 +694,7 @@ func _build_rocks() -> void:
 		transforms.append(Transform3D(basis, rock_position))
 		prop_spots.append({"position": rock_position, "radius": 0.95 * scale})
 
-		offset += rock_spacing
+		offset += rock_spacing / maxf(0.1, rock_scale)
 
 	_add_multimesh("Rocks", rock_mesh, _rock, transforms)
 
@@ -1592,7 +1603,7 @@ func _build_lake() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value + 31
 
-	for i in 6:
+	for i in int(6.0 * lake_scale):
 		var radius := rng.randf_range(16.0, 30.0)
 		var position := _place(centre + rng.randf_range(-42.0, 42.0), 96.0 + rng.randf_range(-26.0, 34.0), 0.0)
 		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(radius, 0.25, radius))
@@ -1907,8 +1918,8 @@ func direction_at(distance: float) -> Vector3:
 ## Name boards where the cities begin: the run has places now, not just
 ## districts. NORTHGATE loads, SOUTHPORT receives.
 func _build_city_signs() -> void:
-	_city_sign(70.0, "NORTHGATE")
-	_city_sign(_baked_length * 0.645, "SOUTHPORT")
+	_city_sign(70.0, start_city)
+	_city_sign(_baked_length * 0.645, end_city)
 
 
 func _city_sign(distance: float, city_name: String) -> void:

@@ -65,6 +65,14 @@ func _ready() -> void:
 		_job_before = int(career_node.get("job_index"))
 
 	_check(_truck != null, "truck found")
+
+	# The job starts parked in the loading bay, not on the carriageway.
+	var start_depot := _road.get_node_or_null("LoadingDepot") as Node3D
+
+	if start_depot != null:
+		var bay := start_depot.to_global(Vector3(-14.0, 0.0, 0.0))
+		var flat := Vector2(_truck.global_position.x - bay.x, _truck.global_position.z - bay.z)
+		_check(flat.length() < 3.0, "the truck starts in the loading bay (%.1f m off)" % flat.length())
 	_check(_wheels != null, "wheel visuals found")
 	_check(_audio != null, "engine audio found")
 	_check(_traffic != null, "traffic found")
@@ -361,6 +369,8 @@ func _check_barrier() -> void:
 
 	if body == null:
 		return
+
+	_truck.global_position = _road.call("point_at", 400.0, 0.0, 1.2)
 
 	var nearest: Node3D = null
 	var nearest_distance := INF

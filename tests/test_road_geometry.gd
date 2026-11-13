@@ -171,6 +171,26 @@ func _check_route_furniture(road: Node3D) -> void:
 	_check(sign_label != null and sign_label.text == "NORTHGATE", "the loading city is NORTHGATE")
 	_check(road.stalled_car_built, "a stalled car waits on the shoulder with its hazards")
 
+	# A mountain-profile road: same seed, harder bends, its own cities.
+	var wild: Node3D = ROAD_SCRIPT.new()
+	wild.set("bend_scale", 1.85)
+	wild.set("wave_scale", 1.5)
+	wild.set("start_city", "RIDGEWAY")
+	wild.build()
+
+	var calm_max := 0.0
+	var wild_curve: Curve3D = wild.get("curve")
+	var wild_max := 0.0
+	var samples := 60
+
+	for i in samples:
+		var d := length * float(i) / float(samples)
+		calm_max = maxf(calm_max, absf(road.point_at(d, 0.0, 0.0).x))
+		wild_max = maxf(wild_max, absf(wild_curve.sample_baked(d).x))
+
+	_check(wild_max > calm_max * 1.4, "the mountain profile swings wider (%.0f m vs %.0f m)" % [wild_max, calm_max])
+	_check(wild.get_node_or_null("CitySign_RIDGEWAY/CityName") != null, "the profile names its own start city")
+
 	# Procedural surfacing: the asphalt is a measured texture, not flat paint.
 	var asphalt_mesh := road.get_node_or_null("Asphalt") as MeshInstance3D
 	var asphalt_mat := asphalt_mesh.material_override as StandardMaterial3D if asphalt_mesh != null else null

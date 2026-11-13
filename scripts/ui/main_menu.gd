@@ -423,7 +423,7 @@ func _refresh_career_panel() -> void:
 	var next := CareerMath.next_rank(cash)
 	var next_line := "Top rank reached" if String(next.get("name", "")).is_empty() else "Next rank: %s — $%d to go" % [String(next.get("name", "")), int(next.get("remaining", 0))]
 
-	career_stats_label.text = "Cash  $%d\nRank  %s\n%s\nDeliveries  %d      Best score  %d\nNext job  #%d · %s (%s) · %.1f km" % [
+	career_stats_label.text = "Cash  $%d\nRank  %s\n%s\nDeliveries  %d      Best score  %d\nNext job  #%d · %s (%s) · %.1f km\nRoute  %s: %s → %s" % [
 		cash,
 		String(career.call("rank")),
 		next_line,
@@ -433,6 +433,9 @@ func _refresh_career_panel() -> void:
 		String(career.call("current_cargo")),
 		String(career.call("current_kind")),
 		float(career.call("current_route_length")) / 1000.0,
+		String(career.call("current_profile").get("name", "Valley Highway")),
+		String(career.call("current_profile").get("from", "")),
+		String(career.call("current_profile").get("to", "")),
 	]
 
 	var board: Array = career.get("leaderboard")

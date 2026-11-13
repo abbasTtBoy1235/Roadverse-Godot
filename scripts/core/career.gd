@@ -90,6 +90,10 @@ func current_route_length() -> float:
 	return CareerMath.route_length(job_index)
 
 
+func current_profile() -> Dictionary:
+	return CareerMath.profile_for(job_index)
+
+
 func rank() -> String:
 	return CareerMath.rank_for(cash)
 

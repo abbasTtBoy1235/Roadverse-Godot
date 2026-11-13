@@ -68,6 +68,23 @@ static func tank_capacity(tank_level: int) -> float:
 	return 60.0 + 20.0 * float(clampi(tank_level, 0, 3))
 
 
+## Four route characters, rotating with the job number so no two
+## consecutive hauls feel alike: a gentle valley, a twisty mountain
+## pass, a lake-dotted coast and a long desert straight. The builder
+## reads the bend/wave/scenery scales; the names end up on the city
+## entrance signs and in the job line.
+const ROUTE_PROFILES := [
+	{"id": "valley", "name": "Valley Highway", "from": "NORTHGATE", "to": "SOUTHPORT", "bend": 1.0, "wave": 1.0, "trees": 1.0, "rocks": 1.0, "lakes": 1.0},
+	{"id": "mountain", "name": "Mountain Pass", "from": "RIDGEWAY", "to": "PINEHOLLOW", "bend": 1.85, "wave": 1.5, "trees": 1.5, "rocks": 1.7, "lakes": 0.5},
+	{"id": "coastal", "name": "Coastal Run", "from": "PORT AZURE", "to": "DUNEPORT", "bend": 0.8, "wave": 0.7, "trees": 0.7, "rocks": 0.8, "lakes": 3.0},
+	{"id": "desert", "name": "Desert Straight", "from": "SANDMERE", "to": "RED MESA", "bend": 0.45, "wave": 0.55, "trees": 0.35, "rocks": 2.2, "lakes": 0.0},
+]
+
+
+static func profile_for(job_index: int) -> Dictionary:
+	return ROUTE_PROFILES[maxi(0, job_index) % ROUTE_PROFILES.size()]
+
+
 ## Save slots live side by side; the profile remembers which one is live.
 static func slot_path(slot: int) -> String:
 	return "user://career_slot%d.cfg" % clampi(slot, 0, 2)

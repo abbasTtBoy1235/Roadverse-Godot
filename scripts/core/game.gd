@@ -20,9 +20,43 @@ func _enter_tree() -> void:
 	road.set("seed_value", career.call("current_seed"))
 	road.set("road_length", career.call("current_route_length"))
 
+	var profile: Dictionary = career.call("current_profile")
+	road.set("bend_scale", float(profile.get("bend", 1.0)))
+	road.set("wave_scale", float(profile.get("wave", 1.0)))
+	road.set("tree_scale", float(profile.get("trees", 1.0)))
+	road.set("rock_scale", float(profile.get("rocks", 1.0)))
+	road.set("lake_scale", float(profile.get("lakes", 1.0)))
+	road.set("start_city", String(profile.get("from", "NORTHGATE")))
+	road.set("end_city", String(profile.get("to", "SOUTHPORT")))
+
 
 func _ready() -> void:
 	InputSetup.ensure_registered()
+	_park_truck_in_loading_bay()
+
+
+## A job starts the way a job starts: backed into the marked bay at the
+## loading depot, freight on, yard around you — not dumped in the
+## middle of the carriageway. Pull out and turn onto the road.
+func _park_truck_in_loading_bay() -> void:
+	var road := get_node_or_null("Road")
+	var truck := get_node_or_null("Truck") as Node3D
+
+	if road == null or truck == null:
+		return
+
+	var depot := road.get_node_or_null("LoadingDepot") as Node3D
+
+	if depot == null:
+		return
+
+	truck.global_transform = Transform3D(depot.global_transform.basis, depot.to_global(Vector3(-14.0, 1.15, 0.0)))
+
+	# Start framed, not mid-snap: the chase camera opens behind the rig.
+	var camera := get_node_or_null("ChaseCamera") as Node3D
+
+	if camera != null:
+		camera.global_position = truck.global_position + truck.global_basis * Vector3(0.0, 4.8, 13.5)
 
 	# The ground plane is a scene material; dress it in procedural turf so
 	# five kilometres of it stops reading as one flat colour. One texture

@@ -11,6 +11,7 @@ func _initialize() -> void:
 	print("[career] running tests")
 
 	_test_routes()
+	_test_route_profiles()
 	_test_job_kinds()
 	_test_cargo_rotation()
 	_test_pay()
@@ -45,6 +46,17 @@ func _test_routes() -> void:
 	_check(CareerMath.route_length(0) >= 29000.0, "the first job is a half-hour haul now (%.0f m)" % CareerMath.route_length(0))
 	_check(CareerMath.reward_for(1000.0, 1680.0) > CareerMath.reward_for(1000.0, 560.0),
 		"longer hauls pay more than short ones")
+
+
+func _test_route_profiles() -> void:
+	var valley: Dictionary = CareerMath.profile_for(0)
+	var mountain: Dictionary = CareerMath.profile_for(1)
+	var desert: Dictionary = CareerMath.profile_for(3)
+	_check(String(valley.get("name")) != String(mountain.get("name")), "consecutive jobs take different routes")
+	_check(float(mountain.get("bend", 0.0)) > float(valley.get("bend", 0.0)), "the mountain pass bends harder than the valley")
+	_check(float(desert.get("bend", 9.0)) < float(valley.get("bend", 9.0)), "the desert runs straighter than the valley")
+	_check(String(CareerMath.profile_for(4).get("id")) == String(valley.get("id")), "the rotation comes back around every four jobs")
+	_check(String(valley.get("from")) != String(valley.get("to")), "every route joins two different cities")
 
 
 func _test_job_kinds() -> void:

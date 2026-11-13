@@ -68,19 +68,19 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic and cruise control — 24 checks |
 | `tests/test_day_cycle.gd` | day/night model and sky gradient — 30 checks |
-| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots, signals and roadworks — 188 checks |
+| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots, signals and roadworks — 190 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
 | `tests/ui_flow.tscn` | menus, settings, camera wiring, minimap, nav arrow, slots, workshop and gamepad — 81 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 8 checks |
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap, car-following and signal maths — 23 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog, wetness, grip and ambience maths — 25 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 19 checks |
-| `tests/test_career.gd` | routes, pay, ranks, job kinds, leaderboard, achievements, slots and upgrades — 63 checks |
+| `tests/test_career.gd` | routes, pay, ranks, job kinds, leaderboard, achievements, slots and upgrades — 68 checks |
 | `tests/drive_state.tscn` | wheels, audio, traffic, rain, barriers, props, a full delivery, the payout, the fuel burn, the fitted truck model and no second trailer |
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**598 checks total.** The same suite runs on every push in GitHub Actions
+**605 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 

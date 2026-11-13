@@ -231,6 +231,23 @@ func _check_drive() -> void:
 	if ambient != null:
 		_check(float(ambient.call("city_level")) > 0.5, "the origin city hums around the truck (%.2f)" % float(ambient.call("city_level")))
 
+	# The horn sounds when held.
+	var horn := _truck.get_node_or_null("Horn")
+
+	if horn != null:
+		horn.call("hold", true)
+		horn.call("_process", 0.016)
+		_check(bool(horn.call("is_sounding")), "the horn sounds when held")
+		horn.call("hold", false)
+
+	# The headlight stalk cycles low -> high beam.
+	if _truck.get_node_or_null("Lights") != null:
+		var stalk := _truck.get_node("Lights") as TruckLights
+		stalk.call("cycle_headlights")
+		_check(bool(stalk.get("high_beam")), "the stalk reaches high beam")
+		stalk.call("cycle_headlights")
+		stalk.call("cycle_headlights")
+
 	# Cruise control arms at a sane speed and disarms on request.
 	_truck.call("toggle_cruise")
 	_check(bool(_truck.get("cruise_on")), "cruise control engages")

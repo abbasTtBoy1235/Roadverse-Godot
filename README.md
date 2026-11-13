@@ -68,9 +68,9 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic and cruise control — 24 checks |
 | `tests/test_day_cycle.gd` | day/night model and sky gradient — 30 checks |
-| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots, signals and roadworks — 184 checks |
+| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots, signals and roadworks — 187 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
-| `tests/ui_flow.tscn` | menus, settings, camera wiring, minimap, slots, workshop and gamepad — 79 checks |
+| `tests/ui_flow.tscn` | menus, settings, camera wiring, minimap, nav arrow, slots, workshop and gamepad — 81 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 8 checks |
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap, car-following and signal maths — 23 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog, wetness, grip and ambience maths — 25 checks |
@@ -80,7 +80,7 @@ That runs three steps headlessly:
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**590 checks total.** The same suite runs on every push in GitHub Actions
+**597 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -144,7 +144,9 @@ throttle via `Input.action_press`, and asserts that the truck:
 | Traffic signals | two signalised zebra crossings per city on a 16 s cycle; pedestrians cross on the red phase, and NPC traffic brakes to a stop at it (amber at the line means clear the crossing) |
 | Fuel station | canopy, six pumps and a shop at 35% of the route — park in the bay and the pumps fill the tank at $2/L, billed to the career wallet |
 | Roadworks | a coned taper, shoulder barriers and a ROADWORKS 30 sign at 58% of the route; the HUD enforces its 30 limit in that window |
-| Controls | keyboard and mouse, plus a full gamepad map (stick steers, triggers pedal, face buttons switch) bound in `InputSetup` |
+| City signs | NORTHGATE (loading) and SOUTHPORT (delivery) name boards where each city begins |
+| Stalled car | a broken-down hatchback on the shoulder at 72%, hazards blinking, warning triangle out |
+| Controls | keyboard and mouse, plus a full gamepad map (stick steers, triggers pedal, face buttons switch) bound in `InputSetup`. `L` cycles headlights off → low → high beam; `H` is the two-tone horn |
 | Traffic | 17 NPC cars and vans looping both lanes, with spinning wheels, brake lamps and headlights |
 | Barrier | the guardrails are real collision boxes, so the truck bounces off instead of driving through |
 | City | 400+ blocks across the two cities and the downtown beyond the end, on a real street grid with avenues and cross streets, 8,200 lit windows, 12 tower beacons |
@@ -341,6 +343,7 @@ fade out as the sky warms orange at sunrise, and the city lights come back on at
 - Default: starts at **07:00**, one full day takes **15 real minutes** (`day_length_seconds = 900`)
 - Set `enabled = false` on the `TimeOfDay` node for a permanently frozen night
 - The HUD shows the in-game clock next to the gear and RPM
+- A **navigation arrow** at the top centre points at the delivery gate with the distance left.
 - A **minimap** in the top-right corner draws the live route from the road's own curve:
   both depots, the toll plaza, the delivery gate and the truck, on every dealt route
 

@@ -164,6 +164,11 @@ func _check_route_furniture(road: Node3D) -> void:
 	_check(road.roadworks_distance > road.toll_distance and road.roadworks_distance < length * 0.64,
 		"the roadworks sit past the toll (%.0f m)" % road.roadworks_distance)
 	_check(road.get_node_or_null("Roadworks/RoadworksSign") != null, "the roadworks carry their warning sign")
+	_check(road.city_sign_count == 2, "both cities announce themselves (%d signs)" % road.city_sign_count)
+
+	var sign_label := road.get_node_or_null("CitySign_NORTHGATE/CityName") as Label3D
+	_check(sign_label != null and sign_label.text == "NORTHGATE", "the loading city is NORTHGATE")
+	_check(road.stalled_car_built, "a stalled car waits on the shoulder with its hazards")
 
 	# Procedural surfacing: the asphalt is a measured texture, not flat paint.
 	var asphalt_mesh := road.get_node_or_null("Asphalt") as MeshInstance3D

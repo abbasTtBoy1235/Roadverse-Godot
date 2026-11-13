@@ -279,6 +279,14 @@ func _build_gate() -> void:
 	_gate.add_child(light)
 
 
+## World position of the delivery gate, for the HUD's navigation arrow.
+func gate_world_position() -> Vector3:
+	if _road == null:
+		return Vector3.ZERO
+
+	return _road.call("point_at", goal_distance, 0.0, 3.0)
+
+
 ## Test hook: distance the truck still has to cover.
 func remaining() -> float:
 	return maxf(0.0, goal_distance - progress)

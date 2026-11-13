@@ -10,6 +10,8 @@ var headlights: Array[Light3D] = []
 var brake_lights: Array[Light3D] = []
 
 var headlights_on := false
+## Second stage of the L key: longer, brighter throw.
+var high_beam := false
 
 var _cones: Array[MeshInstance3D] = []
 var _cone_material: StandardMaterial3D
@@ -91,7 +93,35 @@ func indicator_lamp_count() -> int:
 
 func set_headlights(on: bool) -> void:
 	headlights_on = on
+	high_beam = false
 	_apply(headlights, on)
+	_apply_beam()
+
+
+func set_high_beam(on: bool) -> void:
+	high_beam = on and headlights_on
+	_apply_beam()
+
+
+## off -> low -> high -> off, the way a stalk switch feels.
+func cycle_headlights() -> void:
+	if not headlights_on:
+		set_headlights(true)
+	elif not high_beam:
+		set_high_beam(true)
+	else:
+		set_headlights(false)
+
+
+func _apply_beam() -> void:
+	for light in headlights:
+		var spot := light as SpotLight3D
+
+		if spot == null:
+			continue
+
+		spot.spot_range = 120.0 if high_beam else 75.0
+		spot.light_energy = 11.0 if high_beam else 8.0
 
 	_refresh_cones()
 

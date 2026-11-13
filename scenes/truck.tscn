@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts/vehicle/truck_model.gd" id="7_model"]
 [ext_resource type="Script" path="res://scripts/vehicle/cockpit_interior.gd" id="8_cockpit"]
 [ext_resource type="Script" path="res://scripts/vehicle/exhaust_smoke.gd" id="9_exhaust"]
+[ext_resource type="Script" path="res://scripts/audio/horn.gd" id="10_horn"]
 
 [sub_resource type="BoxShape3D" id="Shape_body"]
 size = Vector3(2.4, 2.6, 8.0)
@@ -174,6 +175,9 @@ omni_range = 6.0
 
 [node name="WheelVisuals" type="Node3D" parent="."]
 script = ExtResource("3_wheels")
+
+[node name="Horn" type="AudioStreamPlayer" parent="."]
+script = ExtResource("10_horn")
 
 [node name="EngineAudio" type="AudioStreamPlayer" parent="."]
 volume_db = -6.0

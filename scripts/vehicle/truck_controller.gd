@@ -112,7 +112,7 @@ func _physics_process(delta: float) -> void:
 	_apply_steering(delta)
 
 	if Input.is_action_just_pressed("rv_toggle_headlights") and _lights != null:
-		_lights.toggle_headlights()
+		_lights.cycle_headlights()
 
 	if _lights != null:
 		_lights.set_brake_lights(brake > 0.1)

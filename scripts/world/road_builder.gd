@@ -100,6 +100,7 @@ var crossing_distances: Array[float] = []
 var signal_pole_count := 0
 
 var _signal_time := 0.0
+var _stalled_hazard_material: StandardMaterial3D
 var _signal_phase := 0
 var _signal_red: StandardMaterial3D
 var _signal_yellow: StandardMaterial3D
@@ -109,6 +110,10 @@ var _signal_green: StandardMaterial3D
 ## full length). Instance transforms cannot be read back headlessly, so the
 ## layout is recorded here. Test hook.
 var city_block_distances: Array[float] = []
+## City entrance signs and the stalled car. Test hooks.
+var city_sign_count := 0
+var stalled_car_built := false
+
 ## The roadworks zone: cones, barriers, a 30 limit. Test hooks.
 var roadworks_distance := 0.0
 var roadworks_cone_count := 0
@@ -182,6 +187,8 @@ func build() -> void:
 	_build_depots()
 	_build_gas_station()
 	_build_roadworks()
+	_build_city_signs()
+	_build_stalled_car()
 	_build_halos()
 	_build_prop_collision()
 	_build_collision()
@@ -1853,6 +1860,10 @@ func _process(delta: float) -> void:
 		_signal_phase = phase
 		_apply_signal_phase()
 
+	if _stalled_hazard_material != null:
+		var blink := 3.2 if fmod(Time.get_ticks_msec() / 1000.0, 0.9) < 0.45 else 0.15
+		_stalled_hazard_material.emission_energy_multiplier = blink
+
 	if _beacon_material == null:
 		return
 
@@ -1890,6 +1901,118 @@ func direction_at(distance: float) -> Vector3:
 
 
 ## Solid props: trees, rocks and the overpass pillars.
+
+
+## Name boards where the cities begin: the run has places now, not just
+## districts. NORTHGATE loads, SOUTHPORT receives.
+func _build_city_signs() -> void:
+	_city_sign(70.0, "NORTHGATE")
+	_city_sign(_baked_length * 0.645, "SOUTHPORT")
+
+
+func _city_sign(distance: float, city_name: String) -> void:
+	var root := Node3D.new()
+	root.name = "CitySign_" + city_name
+	root.transform = Transform3D(_basis(distance), _place(distance, 13.5, 0.0))
+	add_child(root)
+
+	var pole_mesh := CylinderMesh.new()
+	pole_mesh.top_radius = 0.09
+	pole_mesh.bottom_radius = 0.12
+	pole_mesh.height = 3.4
+	pole_mesh.radial_segments = 6
+
+	var pole := MeshInstance3D.new()
+	pole.mesh = pole_mesh
+	pole.material_override = _metal
+	pole.position = Vector3(0.0, 1.7, 0.0)
+	root.add_child(pole)
+	prop_spots.append({"position": root.transform * pole.position, "radius": 0.3})
+
+	var panel_mesh := BoxMesh.new()
+	panel_mesh.size = Vector3(4.6, 1.3, 0.18)
+
+	var panel := MeshInstance3D.new()
+	panel.mesh = panel_mesh
+	panel.material_override = _mat(Color(0.08, 0.22, 0.42), 0.5)
+	panel.position = Vector3(0.0, 3.3, 0.0)
+	root.add_child(panel)
+
+	var label := Label3D.new()
+	label.name = "CityName"
+	label.text = city_name
+	label.font_size = 128
+	label.pixel_size = 0.008
+	label.modulate = Color(0.95, 0.97, 1.0)
+	# Default Label3D faces +Z: straight into the approaching driver's eyes.
+	label.position = Vector3(0.0, 3.3, 0.14)
+	root.add_child(label)
+
+	city_sign_count += 1
+
+
+## A broken-down hatchback on the shoulder at 72%, hazards blinking: the
+## route's little story. Pure decoration, off the running lanes.
+func _build_stalled_car() -> void:
+	var distance := _baked_length * 0.72
+
+	var root := Node3D.new()
+	root.name = "StalledCar"
+	root.transform = Transform3D(_basis(distance), _place(distance, 13.8, 0.0))
+	add_child(root)
+
+	var paint := _mat(Color(0.5, 0.42, 0.1), 0.5)
+	paint.metallic = 0.4
+
+	var body_mesh := BoxMesh.new()
+	body_mesh.size = Vector3(1.8, 0.62, 4.2)
+
+	var body := MeshInstance3D.new()
+	body.mesh = body_mesh
+	body.material_override = paint
+	body.position = Vector3(0.0, 0.55, 0.0)
+	root.add_child(body)
+
+	var cabin_mesh := BoxMesh.new()
+	cabin_mesh.size = Vector3(1.6, 0.5, 2.0)
+
+	var cabin := MeshInstance3D.new()
+	cabin.mesh = cabin_mesh
+	cabin.material_override = _mat(Color(0.08, 0.1, 0.13), 0.25)
+	cabin.position = Vector3(0.0, 1.08, -0.2)
+	root.add_child(cabin)
+
+	var hazard_mat := _mat(Color(0.9, 0.5, 0.08), 0.4)
+	hazard_mat.emission_enabled = true
+	hazard_mat.emission = Color(1.0, 0.55, 0.1)
+	hazard_mat.emission_energy_multiplier = 0.2
+
+	var lamp_mesh := BoxMesh.new()
+	lamp_mesh.size = Vector3(0.3, 0.14, 0.06)
+
+	for side: float in [-0.6, 0.6]:
+		var lamp := MeshInstance3D.new()
+		lamp.mesh = lamp_mesh
+		lamp.material_override = hazard_mat
+		lamp.position = Vector3(side, 0.72, 2.12)
+		root.add_child(lamp)
+
+	# The blink lives in a tiny script-free trick: the material is shared
+	# with nothing else, and TimeOfDay-independent pulsing is done by the
+	# road's own _process via this reference.
+	_stalled_hazard_material = hazard_mat
+
+	# A warning triangle a few metres behind it.
+	var triangle_mesh := BoxMesh.new()
+	triangle_mesh.size = Vector3(0.5, 0.45, 0.08)
+
+	var triangle := MeshInstance3D.new()
+	triangle.mesh = triangle_mesh
+	triangle.material_override = hazard_mat
+	triangle.position = Vector3(-1.5, 0.24, 5.5)
+	root.add_child(triangle)
+
+	stalled_car_built = true
 
 
 ## Half the carriageway is dug up at 58%: a taper of cones, two barriers

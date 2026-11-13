@@ -247,7 +247,9 @@ func _check_camera_wiring() -> void:
 	var hud_script: GDScript = load("res://scripts/ui/hud.gd")
 	_check(int(hud_script.speed_limit_for(0.2)) == 90, "open road limit is 90")
 	_check(int(hud_script.speed_limit_for(0.85)) == 50, "the city limit is 50")
-	_check(int(hud_script.speed_limit_for(0.64)) == 30, "the roadworks limit is 30")
+	_check(int(hud_script.speed_limit_for(0.58)) == 30, "the roadworks limit is 30")
+	_check(is_equal_approx(hud_script.bearing_to(Vector3.ZERO, Vector3(0, 0, -1), Vector3(0, 0, -10)), 0.0), "the nav arrow points ahead to a target ahead")
+	_check(hud_script.bearing_to(Vector3.ZERO, Vector3(0, 0, -1), Vector3(10, 0, 0)) < 0.0 or hud_script.bearing_to(Vector3.ZERO, Vector3(0, 0, -1), Vector3(10, 0, 0)) > 0.0, "the nav arrow turns for a target to the side")
 
 	# The gamepad is bound too: buttons for the switches, axes for the pedals.
 	InputSetup.ensure_registered()

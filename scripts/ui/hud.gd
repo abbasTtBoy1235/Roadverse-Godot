@@ -28,6 +28,8 @@ func _ready() -> void:
 		if _mission != null:
 			minimap.goal_distance = _mission.goal_distance
 
+	_build_nav()
+
 
 func _build() -> void:
 	var panel := PanelContainer.new()
@@ -102,18 +104,54 @@ func _panel_style() -> StyleBoxFlat:
 	return style
 
 
-## Speed limit by route progress (of the goal distance): the roadworks
-## window first, then the city limit, else the open road.
+## Speed limit by route progress: the roadworks window first (the works
+## sit at 58% of the baked route), then the city limit, else open road.
 static func speed_limit_for(progress: float) -> int:
-	if progress > 0.60 and progress < 0.68:
+	if progress > 0.555 and progress < 0.615:
 		return 30
 
 	return 50 if progress > 0.68 else 90
 
 
+## Signed bearing to a target, in radians: 0 ahead, positive to the right.
+static func bearing_to(truck_pos: Vector3, truck_forward: Vector3, target: Vector3) -> float:
+	var to_target := target - truck_pos
+	to_target.y = 0.0
+	truck_forward.y = 0.0
+
+	if to_target.length() < 0.01 or truck_forward.length() < 0.01:
+		return 0.0
+
+	return truck_forward.normalized().signed_angle_to(to_target.normalized(), Vector3.UP)
+
+
+var _nav_arrow: Label
+var _nav_label: Label
+
+
+func _build_nav() -> void:
+	_nav_arrow = _make_label(self, 30, Color(0.55, 1.0, 0.7))
+	_nav_arrow.text = "⬆"
+	_nav_arrow.position = Vector2(-14, 18)
+	_nav_arrow.set_anchors_preset(Control.PRESET_CENTER_TOP)
+
+	_nav_label = _make_label(self, 15, Color(0.55, 1.0, 0.7))
+	_nav_label.position = Vector2(-40, 52)
+	_nav_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+
+
 func _process(_delta: float) -> void:
 	if _truck == null:
 		return
+
+	if _nav_arrow != null and _mission != null and _mission.state == Mission.State.DRIVING:
+		var gate := _mission.gate_world_position()
+		var forward := -_truck.global_transform.basis.z
+		_nav_arrow.rotation = -bearing_to(_truck.global_position, forward, gate)
+		_nav_label.text = "%.1f km" % (_truck.global_position.distance_to(gate) / 1000.0)
+	elif _nav_arrow != null:
+		_nav_arrow.text = "✓"
+
 
 	_speed_label.text = "%d km/h" % roundi(_truck.speed_kph())
 

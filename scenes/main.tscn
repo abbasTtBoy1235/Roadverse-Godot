@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/gameplay/mission.gd" id="10_mission"]
 [ext_resource type="Script" path="res://scripts/ui/results_panel.gd" id="12_results"]
 [ext_resource type="Script" path="res://scripts/world/pedestrians.gd" id="13_peds"]
+[ext_resource type="Script" path="res://scripts/audio/ambient_audio.gd" id="14_ambient"]
 
 [sub_resource type="Environment" id="Env_night"]
 background_mode = 1
@@ -107,6 +108,12 @@ truck_path = NodePath("../Truck")
 [node name="Pedestrians" type="Node3D" parent="."]
 script = ExtResource("13_peds")
 road_path = NodePath("../Road")
+
+[node name="AmbientAudio" type="Node" parent="."]
+script = ExtResource("14_ambient")
+truck_path = NodePath("../Truck")
+road_path = NodePath("../Road")
+weather_path = NodePath("../Weather")
 
 [node name="Mission" type="Node" parent="."]
 script = ExtResource("10_mission")

@@ -13,6 +13,7 @@ var _mission_label: Label
 var _mission: Mission
 var _career_label: Label
 var _damage_bar: ProgressBar
+var minimap: Minimap
 
 
 func _ready() -> void:
@@ -20,6 +21,12 @@ func _ready() -> void:
 	_time = get_node_or_null("../TimeOfDay") as TimeOfDay
 	_mission = get_node_or_null("../Mission") as Mission
 	_build()
+
+	if minimap != null:
+		minimap.setup(get_node_or_null("../Road") as Node3D, _truck)
+
+		if _mission != null:
+			minimap.goal_distance = _mission.goal_distance
 
 
 func _build() -> void:
@@ -50,6 +57,16 @@ func _build() -> void:
 	_damage_bar.add_theme_stylebox_override("background", _bar_style(Color(0.08, 0.1, 0.12, 0.85)))
 	_damage_bar.add_theme_stylebox_override("fill", _bar_style(Color(0.9, 0.55, 0.25)))
 	add_child(_damage_bar)
+
+	minimap = Minimap.new()
+	minimap.name = "Minimap"
+	minimap.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	minimap.offset_left = -212
+	minimap.offset_top = 24
+	minimap.offset_right = -24
+	minimap.offset_bottom = 212
+	minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(minimap)
 
 	_hint_label = _make_label(self, 15, Color(0.75, 0.78, 0.85))
 	_hint_label.position = Vector2(24, 172)

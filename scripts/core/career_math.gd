@@ -34,6 +34,11 @@ static func route_length(job_index: int) -> float:
 	return 1250.0 + float(maxi(0, job_index) % 4) * 240.0
 
 
+## Save slots live side by side; the profile remembers which one is live.
+static func slot_path(slot: int) -> String:
+	return "user://career_slot%d.cfg" % clampi(slot, 0, 2)
+
+
 const ACHIEVEMENTS := [
 	{"id": "first_load", "name": "First load", "desc": "Deliver your first cargo"},
 	{"id": "flawless", "name": "White gloves", "desc": "Deliver a load with zero damage"},

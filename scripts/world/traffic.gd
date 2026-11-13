@@ -39,6 +39,7 @@ var _lengths: Array[float] = []
 var _wheel_pivots: Array = []
 var _headlights: Array[OmniLight3D] = []
 var _lamp_materials: Array[StandardMaterial3D] = []
+var _crossings: Array[float] = []
 var _rounded_bodies := 0
 
 const BODY_COLORS := [
@@ -54,6 +55,30 @@ static func wrap_distance(distance: float, road_length: float) -> float:
 		return 0.0
 
 	return fposmod(distance, road_length)
+
+
+## Speed a car should settle on for the next signalised crossing: full
+## speed on green, a braking profile into the stop line on amber/red.
+## `ahead` is measured to the crossing along the car's own direction.
+static func signal_target_speed(cruise: float, ahead: float, phase: int) -> float:
+	if phase == 0:
+		return cruise
+
+	var to_line := ahead - 5.0  # stop with the nose off the zebra
+
+	if to_line < 0.0:
+		return cruise  # already on or past the crossing: clear it
+
+	if phase == 1 and to_line < 6.0:
+		return cruise  # too close to stop for amber: go through
+
+	if to_line > 42.0:
+		return cruise
+
+	if to_line < 1.5:
+		return 0.0
+
+	return cruise * clampf(to_line / 30.0, 0.0, 1.0)
 
 
 ## Speed a car settles on when the car ahead is `gap` metres away.
@@ -85,6 +110,9 @@ func _ready() -> void:
 		return
 
 	_length = _curve.get_baked_length()
+
+	if _road.get("crossing_distances") != null:
+		_crossings = _road.get("crossing_distances")
 
 	# Density follows the map: the counts that filled 640 m would leave a
 	# 2 km road feeling empty. The exports are rewritten with the real
@@ -333,9 +361,20 @@ func _physics_process(delta: float) -> void:
 	if _curve == null:
 		return
 
+	var phase := 0
+
+	if _road != null and _road.has_method("current_signal_phase"):
+		phase = int(_road.call("current_signal_phase"))
+
 	for i in _bodies.size():
 		var gap := _gap_ahead(i)
 		var target := follow_speed(_cruise[i], gap, safe_gap)
+
+		# Signals trump cruising: queue at the red like everyone else.
+		if phase != 0 and not _crossings.is_empty():
+			for crossing in _crossings:
+				var ahead := wrap_distance((crossing - _distances[i]) * _directions[i], _length)
+				target = minf(target, signal_target_speed(_cruise[i], ahead, phase))
 		var previous := _speeds[i]
 
 		# Brake hard, accelerate gently — the way traffic actually moves.

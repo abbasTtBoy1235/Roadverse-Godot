@@ -19,6 +19,8 @@ var day_option: OptionButton
 var quality_option: OptionButton
 var career_stats_label: Label
 var reset_career_button: Button
+var driver_name_edit: LineEdit
+var slot_option: OptionButton
 
 var _settings_panel: PanelContainer
 var _help_panel: PanelContainer
@@ -354,6 +356,28 @@ func _build_career_panel() -> void:
 	_career_panel.add_child(column)
 
 	_panel_heading(column, "CAREER")
+
+	var career := get_node_or_null("/root/Career")
+
+	driver_name_edit = LineEdit.new()
+	driver_name_edit.name = "DriverNameEdit"
+	driver_name_edit.placeholder_text = "Driver name"
+	driver_name_edit.text = String(career.get("driver_name")) if career != null else "Driver"
+	driver_name_edit.text_submitted.connect(_on_driver_name_submitted)
+	column.add_child(driver_name_edit)
+
+	slot_option = OptionButton.new()
+	slot_option.name = "SlotOption"
+	slot_option.add_item("Save slot 1", 0)
+	slot_option.add_item("Save slot 2", 1)
+	slot_option.add_item("Save slot 3", 2)
+
+	if career != null:
+		slot_option.select(int(career.get("current_slot")))
+
+	slot_option.item_selected.connect(_on_slot_selected)
+	column.add_child(slot_option)
+
 	career_stats_label = _panel_text(column, "")
 	career_stats_label.name = "CareerStats"
 
@@ -371,6 +395,8 @@ func _refresh_career_panel() -> void:
 
 	if career == null or career_stats_label == null:
 		return
+
+	driver_name_edit.text = String(career.get("driver_name"))
 
 	var cash := int(career.get("cash"))
 	var next := CareerMath.next_rank(cash)
@@ -488,6 +514,24 @@ func _on_career_pressed() -> void:
 
 func _on_help_pressed() -> void:
 	_show_only(_help_panel)
+
+
+func _on_driver_name_submitted(value: String) -> void:
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		career.call("set_driver_name", value)
+
+	_refresh_career_panel()
+
+
+func _on_slot_selected(index: int) -> void:
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		career.call("switch_slot", slot_option.get_item_id(index))
+
+	_refresh_career_panel()
 
 
 func _on_reset_career_pressed() -> void:

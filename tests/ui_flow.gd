@@ -58,6 +58,23 @@ func _check_menu() -> void:
 	_check(stats != null and stats.text.contains("Rank"), "the career panel shows rank and cash")
 	menu.call("_on_back_pressed")
 
+	_check(menu.find_child("DriverNameEdit", true, false) != null, "the career panel has a driver name field")
+	_check(menu.find_child("SlotOption", true, false) != null, "the career panel has save slots")
+
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		career.call("set_driver_name", "Test Hauler")
+		career.call("switch_slot", 2)
+		career.call("reset_progress")
+		career.set("cash", 500)
+		career.call("save_progress")
+		career.call("switch_slot", 1)
+		_check(String(career.get("driver_name")) == "Test Hauler", "the driver profile name follows across slots")
+		career.call("switch_slot", 2)
+		_check(int(career.get("cash")) == 500, "slot 2 kept its own wallet ($%d)" % int(career.get("cash")))
+		career.call("switch_slot", 0)
+
 	_check(menu.find_child("VolumeSlider", true, false) != null, "settings has a volume slider")
 	_check(menu.find_child("FovSlider", true, false) != null, "settings has a camera FOV slider")
 	_check(menu.find_child("HeightSlider", true, false) != null, "settings has a camera height slider")
@@ -139,6 +156,20 @@ func _check_game_scene() -> void:
 	_check(game.get_node_or_null("Road") != null, "game scene has a road")
 	_check(game.get_node_or_null("ChaseCamera") != null, "game scene has a camera")
 	_check(game.get_node_or_null("HUD") != null, "game scene has a HUD")
+
+	var minimap := game.get_node_or_null("HUD/Minimap") as Minimap
+	_check(minimap != null, "the HUD carries a minimap")
+
+	if minimap != null:
+		_check(minimap.has_road(), "the minimap mapped the route")
+		_check(minimap.route_point_count() > 50, "the minimap route has detail (%d points)" % minimap.route_point_count())
+
+		var truck := game.get_node_or_null("Truck") as Node3D
+
+		if truck != null:
+			var dot := minimap.project(truck.global_position)
+			_check(dot.x >= 0.0 and dot.x <= Minimap.MAP_SIZE.x and dot.y >= 0.0 and dot.y <= Minimap.MAP_SIZE.y,
+				"the truck marker lands on the map (%.0f, %.0f)" % [dot.x, dot.y])
 	_check(game.get_node_or_null("TimeOfDay") != null, "game scene has a day/night driver")
 
 	var tod := game.get_node_or_null("TimeOfDay")

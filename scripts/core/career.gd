@@ -6,6 +6,11 @@ extends Node
 ## Registered as the `Career` autoload.
 
 const SAVE_PATH := "user://career.cfg"
+const PROFILE_PATH := "user://profile.cfg"
+const SLOT_COUNT := 3
+
+var current_slot := 0
+var driver_name := "Driver"
 
 var job_index := 0
 var cash := 0
@@ -20,6 +25,29 @@ var last_summary: Dictionary = {}
 
 func _ready() -> void:
 	load_progress()
+
+
+## Change the active save slot: current stats are already saved, the new
+## slot's career loads in their place.
+func switch_slot(slot: int) -> void:
+	current_slot = clampi(slot, 0, SLOT_COUNT - 1)
+	job_index = 0
+	cash = 0
+	jobs_done = 0
+	best_score = 0
+	total_metres = 0.0
+	perfect_runs = 0
+	unlocked_achievements = []
+	leaderboard = []
+	last_summary = {}
+	_load_slot(current_slot)
+	_save_profile()
+
+
+func set_driver_name(value: String) -> void:
+	var trimmed := value.strip_edges()
+	driver_name = trimmed if not trimmed.is_empty() else "Driver"
+	_save_profile()
 
 
 func current_cargo() -> String:
@@ -100,6 +128,8 @@ func pay_toll(amount: int) -> void:
 
 
 func save_progress() -> void:
+	_save_profile()
+
 	var config := ConfigFile.new()
 	config.set_value("career", "job_index", job_index)
 	config.set_value("career", "cash", cash)
@@ -109,13 +139,35 @@ func save_progress() -> void:
 	config.set_value("career", "perfect_runs", perfect_runs)
 	config.set_value("career", "achievements", ",".join(PackedStringArray(unlocked_achievements)))
 	config.set_value("career", "leaderboard", JSON.stringify(leaderboard))
-	config.save(SAVE_PATH)
+	config.save(CareerMath.slot_path(current_slot))
+
+
+func _save_profile() -> void:
+	var config := ConfigFile.new()
+	config.set_value("profile", "slot", current_slot)
+	config.set_value("profile", "driver_name", driver_name)
+	config.save(PROFILE_PATH)
 
 
 func load_progress() -> void:
-	var config := ConfigFile.new()
+	var profile := ConfigFile.new()
 
-	if config.load(SAVE_PATH) != OK:
+	if profile.load(PROFILE_PATH) == OK:
+		current_slot = clampi(int(profile.get_value("profile", "slot", 0)), 0, SLOT_COUNT - 1)
+		driver_name = String(profile.get_value("profile", "driver_name", "Driver"))
+
+	_load_slot(current_slot)
+
+
+func _load_slot(slot: int) -> void:
+	var config := ConfigFile.new()
+	var path := CareerMath.slot_path(slot)
+
+	# Careers saved before slots existed live in the old single file.
+	if not FileAccess.file_exists(path) and slot == 0 and FileAccess.file_exists(SAVE_PATH):
+		path = SAVE_PATH
+
+	if config.load(path) != OK:
 		return
 
 	job_index = int(config.get_value("career", "job_index", 0))

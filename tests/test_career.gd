@@ -80,6 +80,8 @@ func _test_leaderboard_and_achievements() -> void:
 		"a long career unlocks the rest (%s)" % str(later))
 	_check(not later.has("first_load"), "already-unlocked achievements stay unlocked")
 	_check(CareerMath.achievement_name("flawless") == "White gloves", "achievements have display names")
+	_check(CareerMath.slot_path(0) != CareerMath.slot_path(2), "save slots are separate files")
+	_check(CareerMath.slot_path(9) == CareerMath.slot_path(2), "slot numbers are clamped")
 
 
 func _test_cargo_rotation() -> void:

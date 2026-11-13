@@ -70,17 +70,17 @@ That runs three steps headlessly:
 | `tests/test_day_cycle.gd` | day/night model and sky gradient — 30 checks |
 | `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots and signals — 181 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
-| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 62 checks |
+| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring, minimap and slots — 70 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 8 checks |
-| `tests/test_audio_traffic.gd` | engine synth, traffic wrap and car-following maths — 17 checks |
-| `tests/test_weather_noise.gd` | tyre, wind, fog, wetness and grip maths — 20 checks |
+| `tests/test_audio_traffic.gd` | engine synth, traffic wrap, car-following and signal maths — 23 checks |
+| `tests/test_weather_noise.gd` | tyre, wind, fog, wetness, grip and ambience maths — 25 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
-| `tests/test_career.gd` | routes, pay, ranks, job kinds, leaderboard and achievements — 56 checks |
+| `tests/test_career.gd` | routes, pay, ranks, job kinds, leaderboard, achievements and save slots — 58 checks |
 | `tests/drive_state.tscn` | wheels, audio, traffic, rain, barriers, props, a full delivery, the payout, the fuel burn, the fitted truck model and no second trailer |
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**545 checks total.** The same suite runs on every push in GitHub Actions
+**565 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -141,7 +141,7 @@ throttle via `Input.action_press`, and asserts that the truck:
 | City glow | emissive skyline past the end of the road, picked up by the glow pass |
 | Two cities | a lower-rise loading city over the first quarter of the route and a taller delivery city over the last third — six building columns deep per side, with open country and the toll between them |
 | Freight depots | a warehouse, dock canopy, marked loading bay and container stacks in each city: `LOADING DEPOT` where every job starts, `DELIVERY DEPOT` beside the destination gate |
-| Traffic signals | two signalised zebra crossings per city on a 16 s cycle; pedestrians cross on the red phase |
+| Traffic signals | two signalised zebra crossings per city on a 16 s cycle; pedestrians cross on the red phase, and NPC traffic brakes to a stop at it (amber at the line means clear the crossing) |
 | Fuel station | canopy, six pumps and a shop at 35% of the route — park in the bay and the pumps fill the tank at $2/L, billed to the career wallet |
 | Traffic | 17 NPC cars and vans looping both lanes, with spinning wheels, brake lamps and headlights |
 | Barrier | the guardrails are real collision boxes, so the truck bounces off instead of driving through |
@@ -197,6 +197,9 @@ is used and nothing else changes. Requirements (format, axis, scale, licence) ar
 - **Results screen.** Delivered or wrecked, the world pauses, the numbers are on screen, and
   `Enter` takes the next route (fresh scene, fresh seed, fresh road).
 - Saved in `user://career.cfg` — job number, cash, deliveries and best score.
+- **Three save slots and a driver profile.** The CAREER panel names the driver and switches
+  between `career_slot0..2.cfg`; the profile file remembers who you are and which slot is
+  live, and pre-slot careers migrate into slot 1 automatically.
 - Start over by deleting that file, or `Career.reset_progress()`.
 
 Jobs also come in kinds, rotating with the job index: **standard**, **fragile**
@@ -263,6 +266,9 @@ directions, wrapping at the ends of the road so the roadside never empties.
 - **Engine audio is synthesised, not sampled.** `EngineAudio` fills an `AudioStreamGenerator`
   with a four-stroke firing frequency (`rpm / 120 * cylinders`) plus three harmonics, and scales
   the gain with revs and pedal load. No audio files, same as everything else in this repo.
+- **The world has ambience.** `AmbientAudio` runs two more noise generators: a deep city hum
+  that swells inside either city and dies in the countryside between them, and a weather
+  layer — rain hiss, smothered hush under snow, near-silence in fog.
 - **Tyre and wind noise are synthesised too.** `RoadNoise` pushes filtered white noise through
   two generators: a low-passed rumble for the tyres (`~speed^0.55`) and a bright hiss for the
   wind (`~speed^2`), both smoothed so they swell rather than snap.
@@ -324,6 +330,8 @@ fade out as the sky warms orange at sunrise, and the city lights come back on at
 - Default: starts at **07:00**, one full day takes **15 real minutes** (`day_length_seconds = 900`)
 - Set `enabled = false` on the `TimeOfDay` node for a permanently frozen night
 - The HUD shows the in-game clock next to the gear and RPM
+- A **minimap** in the top-right corner draws the live route from the road's own curve:
+  both depots, the toll plaza, the delivery gate and the truck, on every dealt route
 
 Because it is pure, the interesting parts are verifiable without a renderer: sun elevation
 (+90° at noon, −90° at midnight, 0° at sunrise/sunset), energy swaps between sun and moon,

@@ -30,6 +30,14 @@ func _check(condition: bool, message: String) -> void:
 
 func _test_tyre_curve() -> void:
 	_check(is_equal_approx(RoadNoise.tyre_gain(0.0), 0.0), "a parked truck makes no tyre noise")
+
+	# Ambient layers: the cities hum, the country is quiet, rain hisses.
+	_check(is_equal_approx(AmbientAudio.city_gain_for(0.1), 1.0), "the loading city hums at full volume")
+	_check(is_equal_approx(AmbientAudio.city_gain_for(0.85), 1.0), "the delivery city hums at full volume")
+	_check(AmbientAudio.city_gain_for(0.45) < 0.05, "the countryside between them is quiet (%.2f)" % AmbientAudio.city_gain_for(0.45))
+	_check(AmbientAudio.weather_gain_for(Weather.Mode.RAIN, 1.0) > AmbientAudio.weather_gain_for(Weather.Mode.SNOW, 0.0),
+		"rain hisses louder than snow falls")
+	_check(is_equal_approx(AmbientAudio.weather_gain_for(Weather.Mode.CLEAR, 1.0), 0.0), "a clear sky is silent")
 	_check(RoadNoise.tyre_gain(30.0) > 0.3, "tyres are already loud in town (%.2f)" % RoadNoise.tyre_gain(30.0))
 	_check(RoadNoise.tyre_gain(95.0) >= 0.99, "full gain at motorway speed")
 	_check(RoadNoise.tyre_gain(400.0) <= 1.0, "tyre gain is clamped")

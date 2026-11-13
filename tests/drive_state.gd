@@ -223,6 +223,11 @@ func _check_cockpit() -> void:
 
 
 func _check_drive() -> void:
+	var ambient := _game.get_node_or_null("AmbientAudio")
+
+	if ambient != null:
+		_check(float(ambient.call("city_level")) > 0.5, "the origin city hums around the truck (%.2f)" % float(ambient.call("city_level")))
+
 	# The game starts at 07:00 now: lamps must be off in the morning.
 	if _road != null:
 		_check(float(_road.get("lamp_level")) < 0.5, "street lamps are off at the morning start (level %.2f)" % float(_road.get("lamp_level")))

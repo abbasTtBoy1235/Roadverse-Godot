@@ -68,9 +68,9 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
 | `tests/test_day_cycle.gd` | day/night model — 26 checks |
-| `tests/test_road_geometry.gd` | procedural road and the city — 121 checks |
+| `tests/test_road_geometry.gd` | procedural road and the city — 138 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
-| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 37 checks |
+| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 39 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 7 checks |
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap and car-following maths — 17 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
@@ -80,7 +80,7 @@ That runs three steps headlessly:
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**410 checks total.** The same suite runs on every push in GitHub Actions
+**432 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 

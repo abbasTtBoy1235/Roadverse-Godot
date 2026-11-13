@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/vehicle/truck_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://scripts/vehicle/truck_lights.gd" id="2_lights"]
@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://scripts/audio/road_noise.gd" id="5_noise"]
 [ext_resource type="Script" path="res://scripts/vehicle/fuel_tank.gd" id="6_fuel"]
 [ext_resource type="Script" path="res://scripts/vehicle/truck_model.gd" id="7_model"]
+[ext_resource type="Script" path="res://scripts/vehicle/cockpit_interior.gd" id="8_cockpit"]
+[ext_resource type="Script" path="res://scripts/vehicle/exhaust_smoke.gd" id="9_exhaust"]
 
 [sub_resource type="BoxShape3D" id="Shape_body"]
 size = Vector3(2.4, 2.6, 8.0)
@@ -188,3 +190,9 @@ truck_path = NodePath("..")
 
 [node name="TruckModel" type="Node3D" parent="."]
 script = ExtResource("7_model")
+
+[node name="CockpitInterior" type="Node3D" parent="."]
+script = ExtResource("8_cockpit")
+
+[node name="Exhaust" type="CPUParticles3D" parent="."]
+script = ExtResource("9_exhaust")

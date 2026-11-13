@@ -7,12 +7,13 @@ extends SceneTree
 const ROAD_SCRIPT := preload("res://scripts/world/road_builder.gd")
 
 const EXPECTED_MESHES := [
-	"Asphalt", "Shoulders", "EdgeLines", "CentreLine", "GuardrailBeams", "PowerWires", "FenceRails", "CityAvenues",
+	"Asphalt", "Shoulders", "EdgeLines", "CentreLine", "GuardrailBeams", "PowerWires", "FenceRails", "CityAvenues", "CitySidewalks",
 ]
 const EXPECTED_MULTIMESHES := [
 	"GuardrailPosts", "DelineatorPosts", "LampPoles", "LampArms", "LampBulbs",
 	"TreeTrunks", "TreeCanopies", "Rocks", "PowerPoles", "DistantHills",
 	"RoadStuds", "KmMarkerPosts", "KmMarkerPlates", "FencePosts", "Shrubs", "CityBlocks", "CityStreets", "CityWindows",
+	"CityLampPoles", "CityLampBulbs", "CityRooftops",
 ]
 
 var _checks := 0
@@ -70,6 +71,12 @@ func _check_city(road: Node3D) -> void:
 	_check(road.beacon_count >= 12, "the tall towers carry beacons (%d)" % road.beacon_count)
 
 	_check(road.city_street_count >= 36, "the city has a street grid (%d streets)" % road.city_street_count)
+	_check(road.city_lamp_count >= 40, "city streets have their own lamps (%d)" % road.city_lamp_count)
+	_check(road.rooftop_count >= 100, "the towers carry rooftop clutter (%d)" % road.rooftop_count)
+	_check(road.gantry_sign_count == 2, "overhead gantry signs announce the road (%d)" % road.gantry_sign_count)
+
+	var gantry_label := road.get_node_or_null("GantrySign0/Label") as Label3D
+	_check(gantry_label != null and gantry_label.text == "NORTHBOUND", "the first gantry sign reads NORTHBOUND")
 
 	var streets := road.get_node_or_null("CityStreets") as MultiMeshInstance3D
 	_check(streets != null and streets.multimesh.instance_count >= 12, "the downtown street grid was built (%d)" % (streets.multimesh.instance_count if streets != null else 0))

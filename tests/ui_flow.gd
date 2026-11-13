@@ -146,3 +146,7 @@ func _check_camera_wiring() -> void:
 	var camera := ChaseCamera.new()
 	_check(camera.orbit != null, "the chase camera owns an orbit state")
 	camera.free()
+
+	var hud_script: GDScript = load("res://scripts/ui/hud.gd")
+	_check(int(hud_script.speed_limit_for(0.2)) == 90, "open road limit is 90")
+	_check(int(hud_script.speed_limit_for(0.85)) == 50, "the city limit is 50")

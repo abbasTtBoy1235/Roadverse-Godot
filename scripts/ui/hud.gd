@@ -85,11 +85,29 @@ func _panel_style() -> StyleBoxFlat:
 	return style
 
 
+## Speed limit by route progress: open road, then the city limit.
+static func speed_limit_for(progress: float) -> int:
+	return 50 if progress > 0.68 else 90
+
+
 func _process(_delta: float) -> void:
 	if _truck == null:
 		return
 
 	_speed_label.text = "%d km/h" % roundi(_truck.speed_kph())
+
+	var road := get_node_or_null("../Road")
+	var limit := 0
+
+	if road != null and ("curve" in road):
+		var curve: Curve3D = road.get("curve")
+		var progress: float = road.call("nearest_distance", _truck.global_position) / maxf(1.0, curve.get_baked_length())
+		limit = speed_limit_for(progress)
+
+	if limit > 0:
+		_speed_label.text += "  ·  limit %d" % limit
+		_speed_label.add_theme_color_override("font_color",
+			Color(1.0, 0.45, 0.3) if _truck.speed_kph() > float(limit) + 2.0 else Color(0.95, 0.97, 1.0))
 
 	var gear_text := "R" if _truck.gearbox.is_reverse else str(_truck.gearbox.current_gear)
 	var lights := "lights ON" if _headlights_on() else "lights OFF"

@@ -81,6 +81,9 @@ var beacon_count := 0
 var city_block_count := 0
 var city_window_count := 0
 var city_street_count := 0
+var city_lamp_count := 0
+var rooftop_count := 0
+var gantry_sign_count := 0
 ## Current lamp dimmer, 0 by day and 1 at night. Test hook.
 var lamp_level := 1.0
 
@@ -119,6 +122,7 @@ func build() -> void:
 	_build_power_poles()
 	_build_power_wires()
 	_build_signs()
+	_build_gantry_signs()
 	_build_km_markers()
 	_build_road_studs()
 	_build_fence()
@@ -658,6 +662,67 @@ func _build_signs() -> void:
 		root.add_child(panel)
 
 
+## Overhead gantry signs, the way a real highway announces the city.
+func _build_gantry_signs() -> void:
+	var panel_material := _mat(Color(0.04, 0.22, 0.11), 0.6)
+
+	var entries: Array = [
+		[0.07, "NORTHBOUND"],
+		[0.31, "CITY CENTRE"],
+	]
+
+	for entry in entries:
+		var fraction: float = entry[0]
+		var distance := _baked_length * fraction
+
+		var root := Node3D.new()
+		root.name = "GantrySign%d" % gantry_sign_count
+		root.transform = Transform3D(_basis(distance), _place(distance, 0.0, 0.0))
+		add_child(root)
+
+		var post_mesh := CylinderMesh.new()
+		post_mesh.top_radius = 0.14
+		post_mesh.bottom_radius = 0.18
+		post_mesh.height = 6.4
+		post_mesh.radial_segments = 8
+
+		for side: float in [-1.0, 1.0]:
+			var post := MeshInstance3D.new()
+			post.mesh = post_mesh
+			post.material_override = _metal
+			post.position = Vector3(side * (road_width * 0.5 + 1.4), 3.2, 0.0)
+			root.add_child(post)
+
+		var beam_mesh := BoxMesh.new()
+		beam_mesh.size = Vector3(road_width + 3.2, 0.35, 0.35)
+
+		var beam := MeshInstance3D.new()
+		beam.mesh = beam_mesh
+		beam.material_override = _metal
+		beam.position = Vector3(0.0, 6.2, 0.0)
+		root.add_child(beam)
+
+		var panel_mesh := BoxMesh.new()
+		panel_mesh.size = Vector3(6.8, 1.6, 0.18)
+
+		var panel := MeshInstance3D.new()
+		panel.mesh = panel_mesh
+		panel.material_override = panel_material
+		panel.position = Vector3(0.0, 5.15, 0.0)
+		root.add_child(panel)
+
+		var label := Label3D.new()
+		label.name = "Label"
+		label.text = String(entry[1])
+		label.font_size = 128
+		label.pixel_size = 0.0085
+		label.modulate = Color(0.92, 0.96, 0.92)
+		label.position = Vector3(0.0, 5.15, 0.22)
+		root.add_child(label)
+
+		gantry_sign_count += 1
+
+
 func _build_distant_hills() -> void:
 	var hill_mesh := CylinderMesh.new()
 	hill_mesh.top_radius = 0.0
@@ -985,6 +1050,46 @@ func _build_city_avenues(city_start: float, pitch: float) -> void:
 	_commit(st, "CityAvenues", material)
 	city_street_count += streets
 
+	# Sidewalks between the road and the first avenue, both sides.
+	var walk_material := _mat(Color(0.16, 0.16, 0.17), 1.0)
+	walk_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	var walk := SurfaceTool.new()
+	walk.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_add_flat_quad(walk, city_start, _baked_length, 23.5, 27.5, 0.05)
+	_add_flat_quad(walk, city_start, _baked_length, -27.5, -23.5, 0.05)
+	_commit(walk, "CitySidewalks", walk_material)
+
+	# City street lamps along the first avenues. The bulbs share the road
+	# lamps' glass material, so the day/night dimmer reaches them too.
+	var pole_mesh := CylinderMesh.new()
+	pole_mesh.top_radius = 0.07
+	pole_mesh.bottom_radius = 0.11
+	pole_mesh.height = 6.5
+	pole_mesh.radial_segments = 6
+
+	var bulb_mesh := SphereMesh.new()
+	bulb_mesh.radius = 0.22
+	bulb_mesh.height = 0.44
+	bulb_mesh.radial_segments = 6
+	bulb_mesh.rings = 3
+
+	var pole_transforms: Array[Transform3D] = []
+	var bulb_transforms: Array[Transform3D] = []
+	var lamp_distance := city_start + 12.0
+
+	while lamp_distance < _baked_length:
+		for lateral: float in [-34.0, 34.0, -72.0, 72.0]:
+			var basis := _basis(lamp_distance)
+			pole_transforms.append(Transform3D(basis, _place(lamp_distance, lateral, 3.25)))
+			bulb_transforms.append(Transform3D(basis, _place(lamp_distance, lateral, 6.4)))
+
+		lamp_distance += 26.0
+
+	_add_multimesh("CityLampPoles", pole_mesh, _metal, pole_transforms)
+	_add_multimesh("CityLampBulbs", bulb_mesh, _lamp_glass, bulb_transforms)
+	city_lamp_count = bulb_transforms.size()
+
 
 ## A street grid under the end-of-road city, so the blocks sit in streets
 ## instead of floating on the plain. Dark ribbons just above the ground.
@@ -1055,6 +1160,28 @@ func _build_city_windows(blocks: Array[Transform3D], road_points: Array[Vector3]
 
 	city_window_count = transforms.size()
 	_add_multimesh("CityWindows", window_mesh, _window_material(), transforms)
+
+	# Rooftop clutter — water tanks and plant boxes — so the towers do not
+	# end in billboard-flat tops when you pass them.
+	var roof_mesh := BoxMesh.new()
+	roof_mesh.size = Vector3(1.0, 1.0, 1.0)
+
+	var roof_transforms: Array[Transform3D] = []
+
+	for i in 170:
+		if blocks.is_empty():
+			break
+
+		var block := blocks[rng.randi_range(0, blocks.size() - 1)]
+		var size := block.basis.get_scale()
+		var box_height := rng.randf_range(0.9, 2.4)
+		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(
+			Vector3(size.x * rng.randf_range(0.2, 0.42), box_height, size.z * rng.randf_range(0.2, 0.42)))
+		var top := block.origin + Vector3.UP * (size.y * 0.5 + box_height * 0.5)
+		roof_transforms.append(Transform3D(basis, top))
+
+	rooftop_count = roof_transforms.size()
+	_add_multimesh("CityRooftops", roof_mesh, _metal, roof_transforms)
 
 	# Beacons on the six tallest blocks.
 	var tallest: Array = blocks.duplicate()

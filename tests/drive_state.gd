@@ -218,6 +218,11 @@ func _check_drive() -> void:
 		var frequency := _audio.current_frequency()
 		_check(frequency > 30.0, "engine synth runs at a believable pitch (%.0f Hz)" % frequency)
 
+	var exhaust := _truck.get_node_or_null("Exhaust")
+
+	if exhaust != null:
+		_check(bool(exhaust.call("smoke_active")), "the exhaust smokes under load")
+
 	if _traffic != null:
 		var after: Array[float] = _traffic.call("car_distances")
 		var moved := 0
@@ -275,6 +280,18 @@ func _check_steering() -> void:
 
 	_check(absf(spin.rotation.y) > 0.01, "front wheels visually steer (%.2f rad)" % spin.rotation.y)
 	_check(spin.rotation.y < 0.0, "steering right turns the wheels right (negative yaw)")
+
+	# Detail pass: the cab interior and the indicators follow the same input.
+	var interior := _truck.get_node_or_null("CockpitInterior")
+
+	if interior != null:
+		_check(absf(float(interior.call("steering_wheel_angle"))) > 0.25,
+			"the steering wheel in the cab turns with the road wheels (%.2f rad)" % float(interior.call("steering_wheel_angle")))
+
+	var lights := _truck.get_node_or_null("Lights") as TruckLights
+
+	if lights != null:
+		_check(lights.indicator_state() == "right", "the right indicator blinks while steering right (%s)" % lights.indicator_state())
 
 
 ## Fires a ray from the truck straight at the nearest piece of guardrail: it must

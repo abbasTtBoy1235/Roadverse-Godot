@@ -128,13 +128,38 @@ func _build_sky() -> void:
 	_environment.adjustment_contrast = 1.07
 	_environment.adjustment_saturation = 1.10
 
-	# Volumetric fog is what lets headlights and lamps carve visible cones
-	# out of the night. Only worth its cost above the low quality tier.
-	_environment.volumetric_fog_enabled = Settings.quality >= 1
 	_environment.volumetric_fog_density = 0.012
 	_environment.volumetric_fog_sky_affect = 0.25
 
+	_apply_quality()
+
 	sky_built = true
+
+
+## Everything the graphics quality setting (Settings ▸ Quality) drives in
+## the environment: volumetric fog, contact shadows, wet-road reflections
+## and how far the sun's shadows reach.
+func _apply_quality() -> void:
+	if _environment == null:
+		return
+
+	# Volumetric fog is what lets headlights and lamps carve visible cones
+	# out of the night. Only worth its cost above the low quality tier.
+	_environment.volumetric_fog_enabled = Settings.quality >= 1
+	_environment.ssao_enabled = Settings.quality >= 1
+	_environment.ssr_enabled = Settings.quality >= 2
+
+	if _sun != null:
+		_sun.directional_shadow_max_distance = [120.0, 200.0, 280.0][Settings.quality]
+
+
+## Test hooks for the quality wiring.
+func ssao_on() -> bool:
+	return _environment != null and _environment.ssao_enabled
+
+
+func ssr_on() -> bool:
+	return _environment != null and _environment.ssr_enabled
 
 
 ## Test hook: how starry the sky is right now (0 by day, 1 at night).

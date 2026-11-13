@@ -55,8 +55,19 @@ func save_settings() -> void:
 	config.save(CONFIG_PATH)
 
 
+## Render resolution per quality tier: the cheap frames are rendered
+## smaller and upscaled, the pretty one is native.
+static func render_scale_for(tier: int) -> float:
+	return [0.75, 0.9, 1.0][clampi(tier, 0, 2)]
+
+
 func apply() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(master_volume, 0.0001)))
+
+	var viewport := get_viewport()
+
+	if viewport != null:
+		viewport.scaling_3d_scale = render_scale_for(quality)
 
 	if DisplayServer.get_name() == "headless":
 		return
@@ -64,8 +75,6 @@ func apply() -> void:
 	DisplayServer.window_set_mode(
 		DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
 	)
-
-	var viewport := get_viewport()
 
 	if viewport != null:
 		viewport.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][quality] as Viewport.MSAA

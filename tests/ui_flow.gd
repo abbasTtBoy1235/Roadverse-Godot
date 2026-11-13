@@ -119,6 +119,11 @@ func _check_settings_persistence() -> void:
 	Settings.set_camera_fov(70.0)
 	Settings.set_day_minutes(15)
 
+	Settings.set_quality(0)
+	_check(is_equal_approx(Settings.get_viewport().scaling_3d_scale, 0.75), "low quality renders at 75%% and upscales")
+	Settings.set_quality(2)
+	_check(is_equal_approx(Settings.get_viewport().scaling_3d_scale, 1.0), "high quality renders natively")
+
 
 func _check_game_scene() -> void:
 	var scene: PackedScene = load("res://scenes/main.tscn")
@@ -141,6 +146,16 @@ func _check_game_scene() -> void:
 	if tod != null:
 		_check(bool(tod.get("sky_built")), "the procedural sky is installed")
 		_check(float(tod.call("star_amount")) < 0.1, "no stars at the 07:00 start (%.2f)" % float(tod.call("star_amount")))
+
+		Settings.set_quality(2)
+		tod.call("_apply_quality")
+		_check(bool(tod.call("ssao_on")), "high quality turns contact shadows (SSAO) on")
+		_check(bool(tod.call("ssr_on")), "high quality turns wet-road reflections (SSR) on")
+		Settings.set_quality(0)
+		tod.call("_apply_quality")
+		_check(not bool(tod.call("ssao_on")) and not bool(tod.call("ssr_on")), "low quality turns both off")
+		Settings.set_quality(2)
+		tod.call("_apply_quality")
 
 	var pause_menu := game.get_node_or_null("PauseMenu")
 	_check(pause_menu != null, "game scene has a pause menu")

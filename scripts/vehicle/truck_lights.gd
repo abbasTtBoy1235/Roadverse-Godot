@@ -12,10 +12,14 @@ var brake_lights: Array[Light3D] = []
 var headlights_on := false
 
 var _cones: Array[MeshInstance3D] = []
+var _cone_material: StandardMaterial3D
 var _cones_built := false
+var _night := 0.0
 
 
 func _ready() -> void:
+	add_to_group("rv_time_aware")
+
 	for node in find_children("*", "Light3D", true, false):
 		var light := node as Light3D
 		if light.is_in_group(HEADLIGHT_GROUP):
@@ -35,7 +39,8 @@ func _build_cones() -> void:
 		return
 	_cones_built = true
 
-	var cone_mat := StandardMaterial3D.new()
+	_cone_material = StandardMaterial3D.new()
+	var cone_mat := _cone_material
 	cone_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	cone_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	cone_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
@@ -57,10 +62,13 @@ func _build_cones() -> void:
 		cone.name = "HeadlightCone"
 		cone.mesh = cone_mesh
 		cone.material_override = cone_mat
-		# Cylinder axis is Y; lay it along the beam (-Z), fat end down-road.
-		cone.rotation_degrees = Vector3(-96.0, 0.0, 0.0)
+		# Cylinder axis is Y with the narrow end at +Y: pitch +84 degrees so
+		# the narrow end sits at the lamp and the wide end opens down-road,
+		# dropping slightly as it goes. (At -96 the cone stood fat-end
+		# forward, like a megaphone held backwards.)
+		cone.rotation_degrees = Vector3(84.0, 0.0, 0.0)
 		cone.position = light.position + Vector3(0.0, -0.25, -3.4)
-		cone.visible = headlights_on
+		cone.visible = headlights_on and _night > 0.03
 		add_child(cone)
 		_cones.append(cone)
 
@@ -85,8 +93,23 @@ func set_headlights(on: bool) -> void:
 	headlights_on = on
 	_apply(headlights, on)
 
+	_refresh_cones()
+
+
+## Beam cones are a night trick: at noon they would hang in the air like
+## smoke. TimeOfDay broadcasts the dark through rv_time_aware.
+func apply_time_of_day(night_factor: float) -> void:
+	_night = clampf(night_factor, 0.0, 1.0)
+
+	if _cone_material != null:
+		_cone_material.albedo_color = Color(1.0, 0.9, 0.7, 0.11 * _night)
+
+	_refresh_cones()
+
+
+func _refresh_cones() -> void:
 	for cone in _cones:
-		cone.visible = on
+		cone.visible = headlights_on and _night > 0.03
 
 
 func toggle_headlights() -> void:

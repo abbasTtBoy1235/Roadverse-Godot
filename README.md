@@ -80,7 +80,7 @@ That runs three steps headlessly:
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**565 checks total.** The same suite runs on every push in GitHub Actions
+**566 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -319,7 +319,10 @@ sun and moon discs and hash-based stars that fade in at night, the environment's
 reflected light come from that sky, and volumetric fog (quality tier permitting) lets lamps
 and headlights cut visible cones through the dark. Every lamp bulb also wears an additive
 billboard halo driven by the same lamp dimmer, the truck's headlights carry translucent beam
-cones, and a gentle colour grade (contrast/saturation) is applied to the whole frame. On the
+cones (narrow at the lamp, opening down-road, and only after dark), and a gentle colour grade
+(contrast/saturation) is applied to the whole frame. Physics interpolation is on project-wide
+and the chase camera positions itself on the physics tick, so at high-refresh monitors the
+world glides between ticks instead of stepping. On the
 medium and high quality tiers SSAO grounds everything in its corners, and on high, SSR turns
 the rain-soaked asphalt (metallic under `set_wetness`) into a mirror for lamps and signs.
 pure model (hour 0..24 in, light parameters out) that is unit tested. One `night_factor` dimmer

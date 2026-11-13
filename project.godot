@@ -27,6 +27,7 @@ window/stretch/mode="canvas_items"
 
 3d/default_gravity=9.8
 common/physics_ticks_per_second=60
+common/physics_interpolation=true
 
 [rendering]
 

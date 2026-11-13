@@ -107,7 +107,9 @@ func _track_impact(delta: float) -> void:
 	_shake = move_toward(_shake, 0.0, delta * 1.8)
 
 
-func _process(delta: float) -> void:
+## Positioning runs on the physics tick: with physics interpolation on,
+## a camera moved from _process fights the interpolator and judders.
+func _physics_process(delta: float) -> void:
 	if _target == null:
 		return
 

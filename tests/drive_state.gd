@@ -203,7 +203,7 @@ func _check_cockpit() -> void:
 	var motion := InputEventMouseMotion.new()
 	motion.relative = Vector2(120.0, 0.0)
 	camera.handle_input_event(motion)
-	camera.call("_process", 0.016)
+	camera.call("_physics_process", 0.016)
 
 	_check(camera.is_cockpit(), "cockpit camera mode engages")
 	_check(camera.global_position.distance_to(camera.cockpit_seat_position()) < 0.05,
@@ -223,6 +223,9 @@ func _check_cockpit() -> void:
 
 
 func _check_drive() -> void:
+	_check(bool(ProjectSettings.get_setting("physics/common/physics_interpolation", false)),
+		"physics interpolation is on, so motion does not step tick to tick")
+
 	var ambient := _game.get_node_or_null("AmbientAudio")
 
 	if ambient != null:
@@ -314,7 +317,16 @@ func _check_steering() -> void:
 	if lights != null:
 		_check(lights.indicator_lamp_count() == 0, "no bolt-on indicator lamps: the truck uses its own (%d)" % lights.indicator_lamp_count())
 		_check(lights.headlight_cone_count() >= 2, "the headlights carry beam cones (%d)" % lights.headlight_cone_count())
-		_check(lights.cones_visible() == lights.headlights_on, "the beam cones follow the headlight switch")
+		_check(not lights.cones_visible(), "the beam cones stay hidden in daylight")
+
+		# Force nightfall: the cones must appear with the dark, and follow
+		# the headlight switch while it lasts.
+		var tod := _game.get_node_or_null("TimeOfDay")
+		tod.set("hour", 22.0)
+		tod.call("_apply")
+		_check(lights.cones_visible() == lights.headlights_on, "the beam cones follow the headlight switch at night")
+		tod.set("hour", 7.0)
+		tod.call("_apply")
 
 
 ## Fires a ray from the truck straight at the nearest piece of guardrail: it must

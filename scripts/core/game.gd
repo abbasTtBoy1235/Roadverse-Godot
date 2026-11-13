@@ -34,7 +34,7 @@ func _ready() -> void:
 
 		if ground_material != null:
 			ground_material.albedo_texture = TextureFactory.ground()
-			ground_material.uv1_scale = Vector3(1000.0, 1000.0, 1000.0)
+			ground_material.uv1_scale = Vector3(7000.0, 7000.0, 7000.0)
 			ground_mesh.material_override = ground_material
 
 

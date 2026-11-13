@@ -68,7 +68,7 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic and cruise control — 24 checks |
 | `tests/test_day_cycle.gd` | day/night model and sky gradient — 30 checks |
-| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots, signals and roadworks — 187 checks |
+| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots, signals and roadworks — 188 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
 | `tests/ui_flow.tscn` | menus, settings, camera wiring, minimap, nav arrow, slots, workshop and gamepad — 81 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 8 checks |
@@ -80,7 +80,7 @@ That runs three steps headlessly:
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**597 checks total.** The same suite runs on every push in GitHub Actions
+**598 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -142,7 +142,7 @@ throttle via `Input.action_press`, and asserts that the truck:
 | Two cities | a lower-rise loading city over the first quarter of the route and a taller delivery city over the last third — six building columns deep per side, with open country and the toll between them |
 | Freight depots | a warehouse, dock canopy, marked loading bay and container stacks in each city: `LOADING DEPOT` where every job starts, `DELIVERY DEPOT` beside the destination gate |
 | Traffic signals | two signalised zebra crossings per city on a 16 s cycle; pedestrians cross on the red phase, and NPC traffic brakes to a stop at it (amber at the line means clear the crossing) |
-| Fuel station | canopy, six pumps and a shop at 35% of the route — park in the bay and the pumps fill the tank at $2/L, billed to the career wallet |
+| Fuel stations | three stops (35% / 55% / 76% of the route), each with canopy, six pumps and a shop — park in a bay and the pumps fill the tank at $2/L, billed to the career wallet. On a 30 km haul you will need them |
 | Roadworks | a coned taper, shoulder barriers and a ROADWORKS 30 sign at 58% of the route; the HUD enforces its 30 limit in that window |
 | City signs | NORTHGATE (loading) and SOUTHPORT (delivery) name boards where each city begins |
 | Stalled car | a broken-down hatchback on the shoulder at 72%, hazards blinking, warning triangle out |
@@ -192,7 +192,7 @@ is used and nothing else changes. Requirements (format, axis, scale, licence) ar
 
 - **Every job generates its own road.** `Career` keeps your job number; `CareerMath.route_seed()`
   turns it into a seed and `Game._enter_tree()` hands it to the road *before* the road builds
-  itself. Route length also grows with the job number, from 4.2 km to over 6 km — five-plus minutes of bends, towns, tolls and weather per delivery — and the
+  itself. Route length also grows with the job number, from 30 km to 39 km — a good half hour of bends, towns, tolls, fuel stops and weather per delivery — and the
   pay, par time and fuel allowance scale with the distance, as do traffic and pedestrian density.
 - **Pay and rank.** A delivery pays `score × 0.12`; the ranks ladder is Rookie → Junior driver →
   Company driver → Long-haul driver → Owner-operator. The menu and HUD both show where you stand.

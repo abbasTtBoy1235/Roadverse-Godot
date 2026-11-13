@@ -33,10 +33,10 @@ albedo_color = Color(0.05, 0.06, 0.05, 1)
 roughness = 1.0
 
 [sub_resource type="PlaneMesh" id="Mesh_ground"]
-size = Vector2(14000, 14000)
+size = Vector2(100000, 100000)
 
 [sub_resource type="BoxShape3D" id="Shape_ground"]
-size = Vector3(14000, 1, 14000)
+size = Vector3(100000, 1, 100000)
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_game")
@@ -67,12 +67,12 @@ world_environment_path = NodePath("../WorldEnvironment")
 [node name="Ground" type="StaticBody3D" parent="."]
 
 [node name="Mesh" type="MeshInstance3D" parent="Ground"]
-position = Vector3(0, 0, -2600)
+position = Vector3(0, 0, -18000)
 mesh = SubResource("Mesh_ground")
 material_override = SubResource("Mat_ground")
 
 [node name="Shape" type="CollisionShape3D" parent="Ground"]
-position = Vector3(0, -0.5, -2600)
+position = Vector3(0, -0.5, -18000)
 shape = SubResource("Shape_ground")
 
 [node name="Road" type="Node3D" parent="."]

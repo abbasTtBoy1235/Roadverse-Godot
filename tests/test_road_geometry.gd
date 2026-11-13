@@ -155,7 +155,8 @@ func _check_route_furniture(road: Node3D) -> void:
 	_check(ROAD_SCRIPT.signal_phase_at(12.0) == 2, "signals turn red late in the cycle")
 	_check(ROAD_SCRIPT.signal_phase_at(17.0) == 0, "the signal cycle wraps")
 
-	_check(road.gas_pump_count == 6, "the fuel station has six pumps (%d)" % road.gas_pump_count)
+	_check(road.gas_pump_count == 18, "the three fuel stations have eighteen pumps between them (%d)" % road.gas_pump_count)
+	_check(road.gas_station_count == 3, "a long haul gets three fuel stations (%d)" % road.gas_station_count)
 	_check(road.gas_station_distance > length * 0.24 and road.gas_station_distance < road.toll_distance,
 		"the fuel station sits between the origin city and the toll (%.0f m)" % road.gas_station_distance)
 	_check(road.get_node_or_null("GasStation/Shop") != null, "the fuel station was built")

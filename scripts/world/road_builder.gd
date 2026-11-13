@@ -120,6 +120,7 @@ var roadworks_cone_count := 0
 
 ## The fuel stop between the origin city and the toll. Test hooks.
 var gas_station_position := Vector3.ZERO
+var gas_station_count := 0
 var gas_station_distance := 0.0
 var gas_pump_count := 0
 
@@ -2069,16 +2070,31 @@ func _build_roadworks() -> void:
 	works.add_child(sign)
 
 
-## A filling station at the roadside: canopy, six pumps, a small shop and
-## a price board. The GasStation area does the actual pumping.
+## Filling stations along the haul: on a 30 km run a 60-litre tank
+## needs friends, so there are three, spaced down the route. Each is
+## canopy, six pumps, a small shop and a price board; the GasStation
+## node does the actual pumping.
 func _build_gas_station() -> void:
-	gas_station_distance = _baked_length * 0.35
+	var fractions: Array[float] = [0.35, 0.55, 0.76]
+	var names: Array[String] = ["GasStation", "GasStation2", "GasStation3"]
+
+	for i in fractions.size():
+		_build_one_station(fractions[i], names[i])
+
+
+func _build_one_station(fraction: float, station_name: String) -> void:
+	var distance := _baked_length * fraction
 
 	var station := GasStation.new()
-	station.name = "GasStation"
-	station.transform = Transform3D(_basis(gas_station_distance), _place(gas_station_distance, 40.0, 0.0))
+	station.name = station_name
+	station.transform = Transform3D(_basis(distance), _place(distance, 40.0, 0.0))
 	add_child(station)
-	gas_station_position = station.transform.origin
+
+	if gas_station_count == 0:
+		gas_station_distance = distance
+		gas_station_position = station.transform.origin
+
+	gas_station_count += 1
 
 	var slab_mesh := BoxMesh.new()
 	slab_mesh.size = Vector3(52.0, 0.14, 36.0)
@@ -2146,7 +2162,7 @@ func _build_gas_station() -> void:
 			"position": station.transform * island_pos,
 			"radius": 1.0,
 			"box": Vector3(4.6, 1.6, 1.1),
-			"basis": _basis(gas_station_distance),
+			"basis": _basis(distance),
 		})
 
 	# The shop behind the pumps.
@@ -2164,7 +2180,7 @@ func _build_gas_station() -> void:
 		"position": station.transform * shop.position,
 		"radius": 1.0,
 		"box": Vector3(18.0, 4.6, 9.0),
-		"basis": _basis(gas_station_distance),
+		"basis": _basis(distance),
 	})
 
 	var sign := Label3D.new()

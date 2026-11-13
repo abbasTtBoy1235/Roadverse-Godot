@@ -18,6 +18,7 @@ const ACTIONS := {
 	"rv_restart": [KEY_R],
 	"rv_pause": [KEY_ESCAPE],
 	"rv_weather": [KEY_F],
+	"rv_cruise": [KEY_T],
 	"rv_next_job": [KEY_ENTER, KEY_KP_ENTER],
 }
 
@@ -36,6 +37,7 @@ const PAD_BUTTONS := {
 	"rv_restart": [JOY_BUTTON_BACK],
 	"rv_pause": [JOY_BUTTON_START],
 	"rv_next_job": [JOY_BUTTON_A],
+	"rv_cruise": [JOY_BUTTON_B],
 }
 
 ## action -> (axis, direction): the stick steers, the triggers pedal.

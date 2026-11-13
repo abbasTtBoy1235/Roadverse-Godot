@@ -66,7 +66,7 @@ That runs three steps headlessly:
 | Step | What it proves |
 |---|---|
 | `--import` | the project imports, every script compiles, all `class_name`s register |
-| `tests/test_gearbox.gd` | gearbox logic — 20 checks |
+| `tests/test_gearbox.gd` | gearbox logic and cruise control — 24 checks |
 | `tests/test_day_cycle.gd` | day/night model and sky gradient — 30 checks |
 | `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots, signals and roadworks — 184 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
@@ -74,13 +74,13 @@ That runs three steps headlessly:
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 8 checks |
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap, car-following and signal maths — 23 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog, wetness, grip and ambience maths — 25 checks |
-| `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
+| `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 19 checks |
 | `tests/test_career.gd` | routes, pay, ranks, job kinds, leaderboard, achievements, slots and upgrades — 63 checks |
 | `tests/drive_state.tscn` | wheels, audio, traffic, rain, barriers, props, a full delivery, the payout, the fuel burn, the fitted truck model and no second trailer |
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**583 checks total.** The same suite runs on every push in GitHub Actions
+**590 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -221,7 +221,10 @@ CAREER panel, and fresh unlocks are announced on the results screen.
 - **Damage comes from shocks**, not from touching things: a speed change above 3 m/s in one frame
   dents the load. Hitting a guardrail at 60 km/h costs you; rolling gently off the shoulder does not.
 - **Arrival needs you to be slow** — under 15 km/h at the gate — so you have to actually stop the
-  rig instead of clipping the post at full tilt.
+  rig instead of clipping the post at full tilt. Or skip the gate entirely and park in the
+  marked bay at the DELIVERY DEPOT: stopping inside it counts as the precision finish.
+- **Cruise control (`T`)** holds whatever speed you arm it at (minimum 30 km/h) until you
+  brake, grab the handbrake, or floor it yourself. The cab wiper sweeps in rain and snow.
 - Score = `base × condition × (0.6 + 0.4 × time factor)`, capped at the base. Clean and quick wins.
 - `R` restarts the run; there is no save yet.
 

@@ -70,7 +70,7 @@ func _build() -> void:
 
 	_hint_label = _make_label(self, 15, Color(0.75, 0.78, 0.85))
 	_hint_label.position = Vector2(24, 172)
-	_hint_label.text = "W/S throttle · A/D steer · Space handbrake · L lights · C camera · F rain · R restart · Esc pause"
+	_hint_label.text = "W/S throttle · A/D steer · Space handbrake · L lights · C camera · T cruise · F weather · R restart · Esc pause"
 
 
 func _make_label(parent: Node, font_size: int, color: Color) -> Label:
@@ -131,6 +131,9 @@ func _process(_delta: float) -> void:
 			Color(1.0, 0.45, 0.3) if _truck.speed_kph() > float(limit) + 2.0 else Color(0.95, 0.97, 1.0))
 
 	var gear_text := "R" if _truck.gearbox.is_reverse else str(_truck.gearbox.current_gear)
+
+	if _truck.cruise_on:
+		gear_text += " · CRUISE %d" % roundi(_truck.cruise_kph)
 	var lights := "lights ON" if _headlights_on() else "lights OFF"
 	var clock := DayCycle.clock_string(_time.current_hour()) if _time != null else "--:--"
 	var fuel := _truck.get_node_or_null("FuelTank") as FuelTank

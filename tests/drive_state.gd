@@ -231,6 +231,13 @@ func _check_drive() -> void:
 	if ambient != null:
 		_check(float(ambient.call("city_level")) > 0.5, "the origin city hums around the truck (%.2f)" % float(ambient.call("city_level")))
 
+	# Cruise control arms at a sane speed and disarms on request.
+	_truck.call("toggle_cruise")
+	_check(bool(_truck.get("cruise_on")), "cruise control engages")
+	_check(float(_truck.get("cruise_kph")) >= 30.0, "cruise takes a cruising speed (%.0f km/h)" % float(_truck.get("cruise_kph")))
+	_truck.call("toggle_cruise")
+	_check(not bool(_truck.get("cruise_on")), "cruise control disengages")
+
 	# The game starts at 07:00 now: lamps must be off in the morning.
 	if _road != null:
 		_check(float(_road.get("lamp_level")) < 0.5, "street lamps are off at the morning start (level %.2f)" % float(_road.get("lamp_level")))
@@ -378,6 +385,11 @@ func _check_weather() -> void:
 		return
 
 	_check(_weather.call("is_emitting"), "rain particles are emitting")
+
+	var interior := _truck.get_node_or_null("CockpitInterior")
+
+	if interior != null:
+		_check(bool(interior.call("wiper_active")), "the wiper sweeps in the rain")
 
 	var soak: float = _weather.call("wetness")
 	_check(soak > 0.3, "the road is soaking up (%.2f)" % soak)

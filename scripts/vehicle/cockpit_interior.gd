@@ -10,6 +10,11 @@ extends Node3D
 var steering_wheel_pivot: Node3D
 
 var _wheel: VehicleWheel3D
+var _wiper_pivot: Node3D
+var _weather: Node
+var _wipe_phase := 0.0
+var _wipe_angle := -0.65
+var _wiping := false
 
 
 func _ready() -> void:
@@ -97,13 +102,65 @@ func _build(front_z: float, width: float, eye_y: float) -> void:
 
 	steering_wheel_pivot.rotation.x = -0.42
 
+	# A wiper parked at the left of the windscreen base.
+	_wiper_pivot = Node3D.new()
+	_wiper_pivot.name = "Wiper"
+	_wiper_pivot.position = Vector3(-width * 0.28, eye_y + 0.18, front_z + 0.42)
+	_wiper_pivot.rotation.z = _wipe_angle
+	add_child(_wiper_pivot)
 
-func _physics_process(_delta: float) -> void:
+	var arm_mesh := BoxMesh.new()
+	arm_mesh.size = Vector3(0.035, 0.52, 0.025)
+
+	var arm := MeshInstance3D.new()
+	arm.mesh = arm_mesh
+	arm.material_override = dash_material
+	arm.position = Vector3(0.0, 0.26, 0.0)
+	_wiper_pivot.add_child(arm)
+
+
+func _physics_process(delta: float) -> void:
 	if _wheel == null or steering_wheel_pivot == null:
 		return
 
 	# The wheel turns several times further than the road wheels do.
 	steering_wheel_pivot.rotation.z = _wheel.steering * 3.2
+
+	_update_wiper(delta)
+
+
+## The wiper sweeps while it precipitates: brisk in rain, lazy in snow,
+## parked at the screen's edge the rest of the time.
+func _update_wiper(delta: float) -> void:
+	if _wiper_pivot == null:
+		return
+
+	if _weather == null:
+		_weather = get_tree().get_first_node_in_group("rv_weather")
+
+	var mode_value := -1
+
+	if _weather != null:
+		mode_value = int(_weather.get("mode"))
+
+	_wiping = mode_value == Weather.Mode.RAIN or mode_value == Weather.Mode.SNOW
+
+	if _wiping:
+		_wipe_phase += delta * (5.2 if mode_value == Weather.Mode.RAIN else 2.4)
+		_wipe_angle = sin(_wipe_phase) * 0.65
+	else:
+		_wipe_angle = move_toward(_wipe_angle, -0.65, delta * 1.8)
+
+	_wiper_pivot.rotation.z = _wipe_angle
+
+
+## Test hooks.
+func wiper_active() -> bool:
+	return _wiping
+
+
+func wiper_angle() -> float:
+	return _wipe_angle
 
 
 ## Test hook: current steering wheel angle in radians.

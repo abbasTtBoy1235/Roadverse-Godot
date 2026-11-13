@@ -42,6 +42,7 @@ var gate_built := false
 var _truck: TruckController
 var _road: Node3D
 var _gate: Node3D
+var _bay_centre := Vector3.INF
 var _last_speed := 0.0
 var _fuel: FuelTank
 
@@ -65,6 +66,12 @@ static func score_for(elapsed_seconds: float, damage_taken: float, par: float, b
 ## Has the truck arrived, i.e. reached the gate slowly enough to stop?
 static func is_arrived(progress_distance: float, goal: float, speed_kph: float, arrival_speed: float) -> bool:
 	return progress_distance >= goal and speed_kph <= arrival_speed
+
+
+## Is the truck parked in the delivery bay (a precision finish)?
+static func within_bay(position: Vector3, bay_centre: Vector3, radius: float) -> bool:
+	var flat := Vector2(position.x - bay_centre.x, position.z - bay_centre.z)
+	return flat.length() <= radius
 
 
 ## 0..1 progress towards the gate.
@@ -94,6 +101,12 @@ func _ready() -> void:
 
 	var length := float(_road.get("curve").get_baked_length()) if _road.get("curve") != null else 0.0
 	goal_distance = length * clampf(goal_fraction, 0.1, 1.0)
+
+	# The marked bay at the delivery depot is the precision finish.
+	var depot := (_road as Node).get_node_or_null("DeliveryDepot") as Node3D
+
+	if depot != null:
+		_bay_centre = depot.to_global(Vector3(-14.0, 0.0, 0.0))
 
 	_build_gate()
 	gate_built = true
@@ -126,6 +139,8 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if is_arrived(progress, goal_distance, speed, arrival_speed_kph):
+		_finish()
+	elif _bay_centre != Vector3.INF and within_bay(_truck.global_position, _bay_centre, 9.5) and speed <= arrival_speed_kph:
 		_finish()
 
 

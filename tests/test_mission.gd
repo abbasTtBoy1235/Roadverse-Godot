@@ -31,6 +31,8 @@ func _check(condition: bool, message: String) -> void:
 
 func _test_impact_damage() -> void:
 	_check(is_equal_approx(Mission.damage_for_impact(1.0, 0.02, 3.0), 0.0), "a light touch costs nothing")
+	_check(Mission.within_bay(Vector3(2.0, 0.0, 3.0), Vector3.ZERO, 9.5), "the bay accepts a parked truck")
+	_check(not Mission.within_bay(Vector3(20.0, 0.0, 0.0), Vector3.ZERO, 9.5), "the bay rejects the far side of the yard")
 	_check(Mission.damage_for_impact(9.0, 0.02, 3.0) > 0.0, "a real hit damages the load")
 	_check(Mission.damage_for_impact(9.0, 0.02, 3.0) > Mission.damage_for_impact(5.0, 0.02, 3.0),
 		"harder hits hurt more")

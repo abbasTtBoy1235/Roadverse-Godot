@@ -23,6 +23,7 @@ func _initialize() -> void:
 	_test_validate_rejects_zero_ratio()
 	_test_validate_rejects_too_few_gears()
 	_test_validate_rejects_bad_thresholds()
+	_test_cruise()
 
 	print("[gearbox] %d checks, %d failures" % [_checks, _failures])
 	quit(1 if _failures > 0 else 0)
@@ -30,6 +31,14 @@ func _initialize() -> void:
 
 func _box() -> Gearbox:
 	return Gearbox.new(PackedFloat32Array([-4.0, 5.0, 2.5, 1.25]), 4.0, 2000.0, 1200.0)
+
+
+func _test_cruise() -> void:
+	_check(is_equal_approx(TruckController.cruise_throttle(40.0, 80.0), 1.0), "cruise floors it when far under target")
+	_check(is_equal_approx(TruckController.cruise_throttle(80.0, 80.0), 0.0), "cruise eases off at the target speed")
+	_check(is_equal_approx(TruckController.cruise_throttle(95.0, 80.0), 0.0), "cruise never accelerates downhill")
+	_check(TruckController.cruise_throttle(74.0, 80.0) > 0.4 and TruckController.cruise_throttle(74.0, 80.0) < 0.6,
+		"cruise feeds in gently near the target (%.2f)" % TruckController.cruise_throttle(74.0, 80.0))
 
 
 func _check(condition: bool, message: String) -> void:

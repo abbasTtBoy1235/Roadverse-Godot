@@ -45,6 +45,11 @@ var _base_friction := 3.0
 var _grip := 1.0
 var _weather: Node
 
+## Cruise control state: hold a speed so the long straights drive
+## themselves. Any brake or handbrake press cancels it.
+var cruise_on := false
+var cruise_kph := 0.0
+
 
 func _ready() -> void:
 	add_to_group("rv_truck")
@@ -83,8 +88,25 @@ func _ready() -> void:
 		_lights.set_headlights(true)
 
 
+## Pedal the cruise computer asks for: full well below target, easing
+## off as the speed arrives, nothing once you are over it.
+static func cruise_throttle(current_kph: float, target_kph: float) -> float:
+	return clampf((target_kph - current_kph) / 12.0, 0.0, 1.0)
+
+
+func toggle_cruise() -> void:
+	cruise_on = not cruise_on
+
+	if cruise_on:
+		cruise_kph = maxf(speed_kph(), 30.0)
+
+
 func _physics_process(delta: float) -> void:
 	_apply_weather_grip()
+
+	if Input.is_action_just_pressed("rv_cruise"):
+		toggle_cruise()
+
 	_read_gear_input()
 	_apply_engine_and_brakes()
 	_apply_steering(delta)
@@ -133,6 +155,14 @@ func _read_gear_input() -> void:
 
 func _apply_engine_and_brakes() -> void:
 	var throttle := Input.get_action_strength("rv_throttle")
+
+	# Cruise holds the speed until the driver brakes or takes over.
+	if cruise_on:
+		if Input.get_action_strength("rv_brake") > 0.05 or Input.is_action_pressed("rv_handbrake"):
+			cruise_on = false
+		elif throttle < 0.05:
+			throttle = cruise_throttle(speed_kph(), cruise_kph)
+
 	engine_load = throttle
 
 	if _fuel != null and _fuel.is_empty():

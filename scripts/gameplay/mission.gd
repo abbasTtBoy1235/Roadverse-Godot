@@ -126,7 +126,9 @@ func _physics_process(delta: float) -> void:
 func _finish() -> void:
 	state = State.DELIVERED
 	var summary := {}
-	score = score_for(elapsed, damage, par_seconds, base_score)
+	# Par time scales with the haul: 95 s was generous for 560 m and
+	# impossible for 2 km.
+	score = score_for(elapsed, damage, par_seconds * maxf(1.0, goal_distance / 560.0), base_score)
 
 	if score > best_score:
 		best_score = score
@@ -143,6 +145,7 @@ func _finish() -> void:
 		"delivered": true,
 		"fuel_used": fuel_used,
 		"fuel_bonus": bonus,
+		"route_metres": goal_distance,
 	}
 
 	var career := get_node_or_null("/root/Career")

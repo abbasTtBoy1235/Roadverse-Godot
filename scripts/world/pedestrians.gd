@@ -49,6 +49,10 @@ func _ready() -> void:
 		return
 
 	_length = _curve.get_baked_length()
+
+	# More road, more walkers, or the sidewalks empty out on a long map.
+	pedestrian_count = clampi(int(round(_length / 30.0)), 26, 64)
+
 	_spawn_all()
 
 

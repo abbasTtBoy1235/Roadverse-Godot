@@ -143,7 +143,7 @@ func _ready() -> void:
 
 	if _mission != null:
 		_check(_mission.gate_built, "the delivery gate was built")
-		_check(_mission.goal_distance > 100.0, "the gate sits down the road (%.0f m)" % _mission.goal_distance)
+		_check(_mission.goal_distance > 1000.0, "the gate sits down a long-haul road (%.0f m)" % _mission.goal_distance)
 
 	Input.action_press("rv_throttle", 1.0)
 

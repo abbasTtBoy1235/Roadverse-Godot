@@ -75,12 +75,12 @@ That runs three steps headlessly:
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap and car-following maths — 17 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog and wetness maths — 15 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
-| `tests/test_career.gd` | routes, pay, ranks, fuel economy and camera shake maths — 35 checks |
+| `tests/test_career.gd` | routes, pay, ranks, fuel economy and camera shake maths — 37 checks |
 | `tests/drive_state.tscn` | wheels, audio, traffic, rain, barriers, props, a full delivery, the payout, the fuel burn, the fitted truck model and no second trailer |
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**432 checks total.** The same suite runs on every push in GitHub Actions
+**434 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -123,7 +123,7 @@ throttle via `Input.action_press`, and asserts that the truck:
 
 | Element | How |
 |---|---|
-| Road ribbon | gentle alternating bends (`bend_amplitude`), 640 m, ramped in from the origin so the truck spawns on the asphalt |
+| Road ribbon | gentle alternating bends (`bend_amplitude`), 1.5 km by default, ramped in from the origin so the truck spawns on the asphalt |
 | Surface | asphalt + gravel shoulders + solid edge lines + dashed centre line, all extruded along the curve |
 | Guardrails | continuous beam on both sides plus posts every 5 m |
 | Delineators | orange reflector posts every 24 m |
@@ -183,7 +183,8 @@ is used and nothing else changes. Requirements (format, axis, scale, licence) ar
 
 - **Every job generates its own road.** `Career` keeps your job number; `CareerMath.route_seed()`
   turns it into a seed and `Game._enter_tree()` hands it to the road *before* the road builds
-  itself. Route length also grows with the job number, from 560 m to 770 m.
+  itself. Route length also grows with the job number, from 1.25 km to nearly 2 km — and the
+  pay, par time and fuel allowance scale with the distance, as do traffic and pedestrian density.
 - **Pay and rank.** A delivery pays `score × 0.12`; the ranks ladder is Rookie → Junior driver →
   Company driver → Long-haul driver → Owner-operator. The menu and HUD both show where you stand.
 - **A wrecked load is a failed job.** Damage reaches 100% and the run ends with no pay and the

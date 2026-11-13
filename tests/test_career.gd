@@ -38,8 +38,11 @@ func _test_routes() -> void:
 	var short := CareerMath.route_length(0)
 	var long := CareerMath.route_length(3)
 	_check(long > short, "routes get longer with experience (%.0f -> %.0f m)" % [short, long])
-	_check(CareerMath.route_length(99) >= 480.0 and CareerMath.route_length(99) <= 800.0,
+	_check(CareerMath.route_length(99) >= 1200.0 and CareerMath.route_length(99) <= 2100.0,
 		"even a long career keeps sane route lengths (%.0f m)" % CareerMath.route_length(99))
+	_check(CareerMath.route_length(0) >= 1200.0, "the first job is a real haul now (%.0f m)" % CareerMath.route_length(0))
+	_check(CareerMath.reward_for(1000.0, 1680.0) > CareerMath.reward_for(1000.0, 560.0),
+		"longer hauls pay more than short ones")
 
 
 func _test_cargo_rotation() -> void:

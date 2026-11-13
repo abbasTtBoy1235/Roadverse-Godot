@@ -28,9 +28,10 @@ static func route_seed(job_index: int) -> int:
 	return 20261112 + maxi(0, job_index) * 977
 
 
-## Routes get a little longer as the career goes on.
+## Long-haul routes: 1.25 km for the first job, growing to nearly 2 km.
+## The map used to top out at 770 m, which a truck covered in under a minute.
 static func route_length(job_index: int) -> float:
-	return 560.0 + float(maxi(0, job_index) % 4) * 70.0
+	return 1250.0 + float(maxi(0, job_index) % 4) * 240.0
 
 
 ## Cargo rotates through the list so the HUD does not read the same forever.
@@ -38,9 +39,11 @@ static func cargo_name(job_index: int) -> String:
 	return CARGO_NAMES[posmod(job_index, CARGO_NAMES.size())]
 
 
-## Money paid for a delivery, straight from the score.
-static func reward_for(score: float) -> int:
-	return maxi(0, int(roundf(maxf(score, 0.0) * 0.12)))
+## Money paid for a delivery: from the score, scaled by how far the haul was
+## (a 2 km run at the old flat rate paid the same as a trip round the block).
+static func reward_for(score: float, route_metres := 560.0) -> int:
+	var distance_factor := clampf(route_metres / 560.0, 1.0, 3.5)
+	return maxi(0, int(roundf(maxf(score, 0.0) * 0.12 * distance_factor)))
 
 
 ## Rank title for a lifetime takings total.
@@ -83,4 +86,4 @@ static func payout(summary: Dictionary) -> int:
 	if not summary.get("delivered", true):
 		return 0
 
-	return reward_for(float(summary.get("score", 0.0)))
+	return reward_for(float(summary.get("score", 0.0)), float(summary.get("route_metres", 560.0)))

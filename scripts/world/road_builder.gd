@@ -8,7 +8,7 @@ extends Node3D
 ## a detailed road. Repeated props go through MultiMesh to keep draw calls low.
 
 @export_group("Road")
-@export var road_length := 640.0
+@export var road_length := 1500.0
 @export var road_width := 13.0
 @export var shoulder_width := 2.6
 @export var bend_amplitude := 28.0
@@ -1124,7 +1124,11 @@ func _build_city_windows(blocks: Array[Transform3D], road_points: Array[Vector3]
 
 	var transforms: Array[Transform3D] = []
 
-	for i in 4200:
+	# More city, more lit windows: the count follows the block count so a
+	# 2 km map does not spread the same windows twice as thin.
+	var window_target := clampi(2600 + blocks.size() * 14, 4200, 9500)
+
+	for i in window_target:
 		if blocks.is_empty():
 			break
 

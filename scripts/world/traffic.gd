@@ -84,6 +84,13 @@ func _ready() -> void:
 		return
 
 	_length = _curve.get_baked_length()
+
+	# Density follows the map: the counts that filled 640 m would leave a
+	# 2 km road feeling empty. The exports are rewritten with the real
+	# counts, so tests and hooks keep reading the truth.
+	car_count = clampi(int(round(_length / 62.0)), 10, 30)
+	forward_car_count = clampi(int(round(_length / 95.0)), 7, 20)
+
 	_spawn_all()
 
 

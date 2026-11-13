@@ -68,7 +68,7 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
 | `tests/test_day_cycle.gd` | day/night model and sky gradient — 30 checks |
-| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots and signals — 178 checks |
+| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots and signals — 181 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
 | `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 57 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 8 checks |
@@ -80,7 +80,7 @@ That runs three steps headlessly:
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**537 checks total.** The same suite runs on every push in GitHub Actions
+**540 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -124,6 +124,7 @@ throttle via `Input.action_press`, and asserts that the truck:
 | Element | How |
 |---|---|
 | Road ribbon | gentle alternating bends (`bend_amplitude`), 1.5 km by default, ramped in from the origin so the truck spawns on the asphalt |
+| Surfaces | no image files anywhere: `TextureFactory` paints deterministic asphalt grain, mottled ground turf, concrete and facade grime pixel by pixel; flat ribbons carry world-planar UVs so textures tile by the metre |
 | Surface | asphalt + gravel shoulders + solid edge lines + dashed centre line, all extruded along the curve |
 | Guardrails | continuous beam on both sides plus posts every 5 m |
 | Delineators | orange reflector posts every 24 m |

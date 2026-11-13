@@ -24,6 +24,19 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	InputSetup.ensure_registered()
 
+	# The ground plane is a scene material; dress it in procedural turf so
+	# five kilometres of it stops reading as one flat colour. One texture
+	# tile covers about 14 m.
+	var ground_mesh := get_node_or_null("Ground/Mesh") as MeshInstance3D
+
+	if ground_mesh != null and ground_mesh.material_override != null:
+		var ground_material := ground_mesh.material_override.duplicate() as StandardMaterial3D
+
+		if ground_material != null:
+			ground_material.albedo_texture = TextureFactory.ground()
+			ground_material.uv1_scale = Vector3(400.0, 400.0, 400.0)
+			ground_mesh.material_override = ground_material
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("rv_restart"):

@@ -161,6 +161,34 @@ func _check_route_furniture(road: Node3D) -> void:
 	_check(road.get_node_or_null("GasStation/Shop") != null, "the fuel station was built")
 	_check(road.halo_count >= 100, "every lamp wears a glow halo (%d)" % road.halo_count)
 
+	# Procedural surfacing: the asphalt is a measured texture, not flat paint.
+	var asphalt_mesh := road.get_node_or_null("Asphalt") as MeshInstance3D
+	var asphalt_mat := asphalt_mesh.material_override as StandardMaterial3D if asphalt_mesh != null else null
+	_check(asphalt_mat != null and asphalt_mat.albedo_texture != null, "the asphalt carries a procedural texture")
+
+	var asphalt_image := TextureFactory.asphalt().get_image()
+	var seen := {}
+
+	for x in range(0, asphalt_image.get_width(), 7):
+		for y in range(0, asphalt_image.get_height(), 7):
+			seen[asphalt_image.get_pixel(x, y).to_html()] = true
+
+	_check(seen.size() > 40, "the asphalt texture has real grain (%d shades sampled)" % seen.size())
+
+	var ground_image := TextureFactory.ground().get_image()
+	var greens := 0
+	var sampled := 0
+
+	for x in range(0, ground_image.get_width(), 5):
+		for y in range(0, ground_image.get_height(), 5):
+			var pixel := ground_image.get_pixel(x, y)
+			sampled += 1
+
+			if pixel.g > pixel.r:
+				greens += 1
+
+	_check(greens > sampled / 2, "the ground texture reads green, not grey (%d/%d)" % [greens, sampled])
+
 	_check(road.get_node_or_null("LoadingDepot/Warehouse") != null, "the loading depot was built")
 	_check(road.get_node_or_null("DeliveryDepot/Warehouse") != null, "the delivery depot was built")
 	_check(road.nearest_distance(road.loading_depot_position) < length * 0.2,

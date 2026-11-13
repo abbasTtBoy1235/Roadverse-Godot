@@ -233,10 +233,13 @@ func _basis(distance: float) -> Basis:
 
 func _create_materials() -> void:
 	_asphalt = _mat(Color(0.075, 0.075, 0.085), 0.95)
+	_asphalt.albedo_texture = TextureFactory.asphalt()
+	_asphalt.uv1_scale = Vector3(1.0, 1.0, 1.0)
 	_asphalt.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_dry_asphalt_roughness = _asphalt.roughness
 
 	_shoulder = _mat(Color(0.13, 0.12, 0.11), 1.0)
+	_shoulder.albedo_texture = TextureFactory.concrete(128)
 	_shoulder.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	_paint = _mat(Color(0.86, 0.86, 0.80), 0.55)
@@ -272,8 +275,12 @@ func _create_materials() -> void:
 	_wire_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	_concrete = _mat(Color(0.22, 0.21, 0.2), 0.85)
+	_concrete.albedo_texture = TextureFactory.concrete()
+	_concrete.uv1_scale = Vector3(0.3, 0.3, 0.3)
 
 	_city_glow = _mat(Color(0.13, 0.15, 0.21), 0.85)
+	_city_glow.albedo_texture = TextureFactory.facade()
+	_city_glow.uv1_scale = Vector3(0.08, 0.08, 0.08)
 	_city_glow.emission_enabled = true
 	_city_glow.emission = Color(0.9, 0.68, 0.4)
 	_city_glow.emission_energy_multiplier = 0.25
@@ -295,8 +302,28 @@ func _add_flat_quad(st: SurfaceTool, d0: float, d1: float, inner: float, outer: 
 	var c := _place(d1, outer, height)
 	var d := _place(d1, inner, height)
 
-	_add_triangle(st, a, c, b)
-	_add_triangle(st, a, d, c)
+	# World-planar UVs (1 unit = 4 m) so the procedural ground textures tile
+	# evenly however long the ribbon runs.
+	var uv_scale := 0.25
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(inner, d0) * uv_scale)
+	st.add_vertex(a)
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(outer, d1) * uv_scale)
+	st.add_vertex(c)
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(outer, d0) * uv_scale)
+	st.add_vertex(b)
+
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(inner, d0) * uv_scale)
+	st.add_vertex(a)
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(inner, d1) * uv_scale)
+	st.add_vertex(d)
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(outer, d1) * uv_scale)
+	st.add_vertex(c)
 
 
 ## Adds a vertical ribbon (used for guardrail beams).

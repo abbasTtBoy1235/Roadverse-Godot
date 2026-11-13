@@ -28,10 +28,11 @@ static func route_seed(job_index: int) -> int:
 	return 20261112 + maxi(0, job_index) * 977
 
 
-## Long-haul routes: 1.25 km for the first job, growing to nearly 2 km.
-## The map used to top out at 770 m, which a truck covered in under a minute.
+## Long-haul routes: 4.2 km for the first job, growing past 6 km. At a
+## working cruise that is five-plus minutes of bends, towns and weather
+## per delivery — a drive, not a dash. (It used to top out at 770 m.)
 static func route_length(job_index: int) -> float:
-	return 1250.0 + float(maxi(0, job_index) % 4) * 240.0
+	return 4200.0 + float(maxi(0, job_index) % 4) * 650.0
 
 
 ## Workshop upgrades, bought with career cash: three levels each.

@@ -121,8 +121,10 @@ func _make_glass_transparent() -> void:
 			var glass := material.duplicate() as StandardMaterial3D
 			glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 
+			# Nearly clear: just a whisper of tint left (drivers asked twice).
 			var tint := glass.albedo_color
-			tint.a = 0.08
+			tint = tint.lerp(Color(0.75, 0.85, 0.95), 0.6)
+			tint.a = 0.03
 			glass.albedo_color = tint
 			glass_alpha = tint.a
 			glass.cull_mode = BaseMaterial3D.CULL_DISABLED

@@ -192,7 +192,7 @@ is used and nothing else changes. Requirements (format, axis, scale, licence) ar
 
 - **Every job generates its own road.** `Career` keeps your job number; `CareerMath.route_seed()`
   turns it into a seed and `Game._enter_tree()` hands it to the road *before* the road builds
-  itself. Route length also grows with the job number, from 1.25 km to nearly 2 km — and the
+  itself. Route length also grows with the job number, from 4.2 km to over 6 km — five-plus minutes of bends, towns, tolls and weather per delivery — and the
   pay, par time and fuel allowance scale with the distance, as do traffic and pedestrian density.
 - **Pay and rank.** A delivery pays `score × 0.12`; the ranks ladder is Rookie → Junior driver →
   Company driver → Long-haul driver → Owner-operator. The menu and HUD both show where you stand.

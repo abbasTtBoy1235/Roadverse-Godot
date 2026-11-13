@@ -68,7 +68,7 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
 | `tests/test_day_cycle.gd` | day/night model — 26 checks |
-| `tests/test_road_geometry.gd` | procedural road and the city — 117 checks |
+| `tests/test_road_geometry.gd` | procedural road and the city — 121 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
 | `tests/ui_flow.tscn` | menus, settings persistence, camera wiring — 37 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 7 checks |
@@ -80,7 +80,7 @@ That runs three steps headlessly:
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**399 checks total.** The same suite runs on every push in GitHub Actions
+**410 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -140,7 +140,7 @@ throttle via `Input.action_press`, and asserts that the truck:
 | City glow | emissive skyline past the end of the road, picked up by the glow pass |
 | Traffic | 17 NPC cars and vans looping both lanes, with spinning wheels, brake lamps and headlights |
 | Barrier | the guardrails are real collision boxes, so the truck bounces off instead of driving through |
-| City | 310 blocks alongside and past the road, a street grid, 4,200 lit windows, 12 tower beacons |
+| City | 241 blocks on a real street grid alongside and past the road, avenues and cross streets, 4,200 lit windows, 12 tower beacons |
 
 Repeated props use `MultiMeshInstance3D`, so ~900 instances cost a handful of draw calls.
 Generation takes **30 ms** headless. Change `seed_value` on the `Road` node for a different
@@ -219,8 +219,11 @@ your lane at 9–14 m/s, which makes them things to overtake. Cars and vans wear
 carry glass cabins and roll on spinning wheels. Each one measures the gap to the vehicle ahead
 in its own lane and settles on `follow_speed(cruise, gap, safe_gap)`: cruise when clear, a
 proportional crawl as it closes in, stopped when the gap is gone. Brake lamps light up while
-decelerating — hard braking, gentle acceleration, the way traffic really moves. They still have
-no collision.
+decelerating — hard braking, gentle acceleration, the way traffic really moves. Right-hand
+traffic throughout: same-direction cars keep to your side of the road, oncoming cars to the
+far side. And they are **solid** — every car is a kinematic physics body with a collision box,
+so you cannot drive through them; a hit costs speed, cargo condition and a camera kick, exactly
+like the guardrails.
 
 **Pedestrians too:** 26 walkers stroll both sidewalks with swinging arms and legs, in both
 directions, wrapping at the ends of the road so the roadside never empties.
@@ -359,7 +362,7 @@ All four would have shipped invisibly in a code-only review.
 - [ ] No visual verification of the night lighting — headless has no renderer, so materials,
       fog and light intensities are unverified by tests
 - [ ] No brake squeal, horn or indicator click sounds yet
-- [ ] Traffic has no collision and never changes lane, so it follows rather than overtakes
+- [ ] Traffic never changes lane, so it follows rather than overtakes
 - [ ] Cargo weight does      not affect the tractor
 - [ ] No fuel, engine wear, hours-of-service or trailer damage
 - [ ] No multi-stop routes, no cargo market, no garage or truck upgrades

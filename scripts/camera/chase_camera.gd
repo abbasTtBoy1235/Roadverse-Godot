@@ -25,7 +25,9 @@ extends Camera3D
 
 var _shake := 0.0
 var _last_speed := 0.0
-@export var cockpit_offset := Vector3(0.0, 2.35, -1.9)
+## Driver's eye point in truck space: left seat, up at cab height, just
+## behind the windscreen (the model's nose is at model_front_z).
+@export var cockpit_offset := Vector3(-0.45, 2.1, -2.2)
 
 enum Mode { CHASE, CHASE_CLOSE, COCKPIT }
 
@@ -49,11 +51,14 @@ func _ready() -> void:
 
 		if _socket != null and _socket.has_model:
 			cockpit_offset = Vector3(
-				0.0,
-				clampf(_socket.model_height * 0.55, 1.4, 2.2),
-				_socket.model_front_z + 1.1
+				-0.45,
+				clampf(_socket.model_height * 0.62, 1.8, 2.3),
+				_socket.model_front_z + 1.25
 			)
 
+	# Inside the cab the near plane has to be tight or the dashboard and
+	# pillars clip away.
+	near = 0.05
 	capture_mouse()
 
 
@@ -108,15 +113,30 @@ func _process(delta: float) -> void:
 	_track_impact(delta)
 
 	_since_look += delta
-	if _since_look > auto_recentre_delay and orbit.is_offset():
+	# In the cab the driver keeps looking where they turned their head;
+	# recentring there would fight every junction check.
+	if mode != Mode.COCKPIT and _since_look > auto_recentre_delay and orbit.is_offset():
 		orbit.recentre(delta, recentre_speed)
 
 	var weight := 1.0 - exp(-smooth * delta)
 
 	if mode == Mode.COCKPIT:
-		var seat := _target.global_transform * cockpit_offset
-		global_position = global_position.lerp(seat, weight)
-		global_basis = _target.global_basis
+		# Locked to the seat, exactly, every frame: a smoothed follow makes
+		# the cab swim around the driver in every bend. The mouse turns the
+		# driver's head (clamped, so you cannot stare into the cargo box),
+		# and impacts still kick.
+		global_position = _target.global_transform * cockpit_offset
+
+		var head := Basis(Vector3.UP, clampf(orbit.yaw, -1.35, 1.35)) \
+			* Basis(Vector3.RIGHT, clampf(orbit.pitch, -0.45, 0.30))
+		global_basis = _target.global_basis * head
+
+		if _shake > 0.001:
+			global_position += global_basis * Vector3(
+				sin(Time.get_ticks_msec() * 0.05) * _shake * shake_strength,
+				cos(Time.get_ticks_msec() * 0.07) * _shake * shake_strength,
+				0.0
+			)
 		return
 
 	var follow_distance := distance * orbit.zoom
@@ -180,6 +200,16 @@ func _sensitivity() -> float:
 ## Camera shake demanded by a sudden change of speed, in m/s.
 static func shake_for(delta_speed: float, threshold := 4.0) -> float:
 	return clampf((absf(delta_speed) - threshold) * 0.12, 0.0, 1.0)
+
+
+## Test hook: where the driver's eyes should be right now.
+func cockpit_seat_position() -> Vector3:
+	return Vector3.ZERO if _target == null else _target.global_transform * cockpit_offset
+
+
+## Test hook: are we sitting in the cab?
+func is_cockpit() -> bool:
+	return mode == Mode.COCKPIT
 
 
 ## Test hook: current shake amount, 0..1.

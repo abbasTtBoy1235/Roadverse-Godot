@@ -221,10 +221,10 @@ func _create_materials() -> void:
 
 	_concrete = _mat(Color(0.22, 0.21, 0.2), 0.85)
 
-	_city_glow = _mat(Color(0.9, 0.72, 0.45), 0.5)
+	_city_glow = _mat(Color(0.13, 0.15, 0.21), 0.85)
 	_city_glow.emission_enabled = true
-	_city_glow.emission = Color(1.0, 0.72, 0.38)
-	_city_glow.emission_energy_multiplier = 1.4
+	_city_glow.emission = Color(0.9, 0.68, 0.4)
+	_city_glow.emission_energy_multiplier = 0.25
 
 
 func _mat(colour: Color, roughness: float) -> StandardMaterial3D:
@@ -397,7 +397,7 @@ func apply_time_of_day(night_factor: float) -> void:
 		_window_mat.emission_energy_multiplier = lerpf(0.1, 2.4, lamp_level)
 
 	if _city_glow != null:
-		_city_glow.emission_energy_multiplier = lerpf(0.25, 1.4, lamp_level)
+		_city_glow.emission_energy_multiplier = lerpf(0.03, 0.25, lamp_level)
 
 	if _beacon_material != null:
 		_beacon_material.emission_energy_multiplier = lerpf(0.0, 3.0, lamp_level)
@@ -880,9 +880,11 @@ func _build_overpass() -> void:
 
 
 func _build_city_glow() -> void:
-	# A real city, not a skyline postcard: districts run alongside the last
-	# half of the road (set back far enough never to swallow the roadside)
-	# and keep going past the end of it, taller and denser than before.
+	# A real city, laid out like one: city blocks on a street grid. Along the
+	# road the districts follow the curve in rows and columns aligned to it,
+	# with avenue gaps between the columns and cross streets between the
+	# rows; past the end of the road a denser downtown grid takes over.
+	# Heights grow towards the city, so the skyline builds up as you arrive.
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(1.0, 1.0, 1.0)
 
@@ -891,41 +893,97 @@ func _build_city_glow() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value + 7
 
-	# Approach districts: both sides of the road from a third of the way in.
-	for i in 190:
-		var distance := rng.randf_range(_baked_length * 0.35, _baked_length)
-		var side := -1.0 if i % 2 == 0 else 1.0
-		var lateral := side * rng.randf_range(55.0, 360.0)
-		var width := rng.randf_range(10.0, 34.0)
-		var height := rng.randf_range(12.0, 78.0)
-		var depth := rng.randf_range(10.0, 34.0)
+	var pitch := 36.0
+	var city_start := _baked_length * 0.30
 
-		var position := _place(distance, lateral, height * 0.5)
-		var basis := Basis(Vector3.UP, rng.randf_range(-0.25, 0.25)).scaled(Vector3(width, height, depth))
-		transforms.append(Transform3D(basis, position))
-		road_points.append(_place(distance, 0.0, 0.0))
+	# Districts alongside the road, on both sides.
+	var distance := city_start + pitch * 0.5
 
-	# The city keeps going past the end of the road.
+	while distance < _baked_length - 12.0:
+		var downtown := clampf((distance / _baked_length - 0.3) / 0.7, 0.0, 1.0)
+
+		for side: float in [-1.0, 1.0]:
+			for column in 6:
+				if rng.randf() < 0.14:
+					continue  # a park, a car park, a gap in the street wall
+
+				var width := rng.randf_range(22.0, 28.0)
+				var depth := rng.randf_range(22.0, 28.0)
+				var height := rng.randf_range(10.0, 26.0) \
+					+ downtown * downtown * rng.randf_range(10.0, 55.0)
+				var lateral := side * (54.0 + float(column) * pitch)
+
+				var basis := _basis(distance).scaled(Vector3(width, height, depth))
+				transforms.append(Transform3D(basis, _place(distance, lateral, height * 0.5)))
+				road_points.append(_place(distance, 0.0, 0.0))
+
+		distance += pitch
+
+	# Downtown, past the end of the road: a full grid around the corridor
+	# the road arrives on.
 	var end_point := _point(_baked_length)
 	var end_direction := _tangent(_baked_length)
 	var end_right := _right(_baked_length)
+	var end_basis := Basis(end_right, Vector3.UP, -end_direction)
 
-	for i in 120:
-		var lateral := rng.randf_range(-430.0, 430.0)
-		var width := rng.randf_range(10.0, 36.0)
-		var height := rng.randf_range(14.0, 96.0)
-		var depth := rng.randf_range(10.0, 36.0)
-		var ahead := rng.randf_range(-30.0, 330.0)
+	for row in 9:
+		for column in range(-7, 8):
+			if column == 0 and row < 2:
+				continue  # the road's own corridor into the city
 
-		var position := end_point + end_direction * ahead + end_right * lateral + Vector3.UP * (height * 0.5)
-		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(width, height, depth))
-		transforms.append(Transform3D(basis, position))
-		road_points.append(end_point)
+			if rng.randf() < 0.12:
+				continue
+
+			var width := rng.randf_range(22.0, 30.0)
+			var depth := rng.randf_range(22.0, 30.0)
+			var centre_factor := 1.15 - minf(absf(float(column)), 7.0) * 0.06
+			var height := rng.randf_range(22.0, 60.0) * centre_factor + rng.randf_range(0.0, 30.0)
+			var ahead := 26.0 + float(row) * pitch
+			var lateral := float(column) * pitch
+
+			var position := end_point + end_direction * ahead + end_right * lateral + Vector3.UP * (height * 0.5)
+			transforms.append(Transform3D(end_basis.scaled(Vector3(width, height, depth)), position))
+			road_points.append(end_point)
 
 	city_block_count = transforms.size()
 	_add_multimesh("CityBlocks", mesh, _city_glow, transforms)
+	_build_city_avenues(city_start, pitch)
 	_build_city_streets(end_point, end_direction, end_right)
 	_build_city_windows(transforms, road_points, rng)
+
+
+## Avenues and cross streets for the districts alongside the road, drawn as
+## dark ribbons on the ground so the blocks visibly sit in a street grid.
+func _build_city_avenues(city_start: float, pitch: float) -> void:
+	var material := _mat(Color(0.05, 0.055, 0.07), 0.95)
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	# Avenues in the gaps between the building columns (columns sit at
+	# 54/90/126... m with at most 28 m footprints, so these bands stay clear).
+	var bands: Array = [[28.0, 40.0], [68.0, 76.0], [104.0, 112.0], [140.0, 148.0], [176.0, 184.0], [212.0, 220.0]]
+	var streets := 0
+
+	for side: float in [-1.0, 1.0]:
+		for band in bands:
+			_add_flat_quad(st, city_start, _baked_length, side * float(band[0]), side * float(band[1]), 0.03)
+			streets += 1
+
+	# Cross streets in the gaps between the building rows.
+	var distance := city_start + pitch * 0.5
+
+	while distance + pitch * 0.5 < _baked_length - 6.0:
+		var from := distance + pitch * 0.5 + 1.0
+		var to := distance + pitch * 1.5 - 1.0
+		_add_flat_quad(st, from, to, 28.0, 250.0, 0.03)
+		_add_flat_quad(st, from, to, -250.0, -28.0, 0.03)
+		streets += 2
+		distance += pitch * 2.0
+
+	_commit(st, "CityAvenues", material)
+	city_street_count += streets
 
 
 ## A street grid under the end-of-road city, so the blocks sit in streets
@@ -949,7 +1007,7 @@ func _build_city_streets(end_point: Vector3, direction: Vector3, right: Vector3)
 		var basis := Basis(right, Vector3.UP, direction).scaled(Vector3(430.0, 0.08, 10.0))
 		transforms.append(Transform3D(basis, centre))
 
-	city_street_count = transforms.size()
+	city_street_count += transforms.size()
 	_add_multimesh("CityStreets", mesh, material, transforms)
 
 

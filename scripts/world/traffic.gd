@@ -5,7 +5,8 @@ extends Node3D
 ## while doing it. The oncoming lane sweeps past you; the slow lane ahead is
 ## there to be overtaken.
 ##
-## Purely visual — no collision — so the truck can always be driven through them.
+## Every car is an AnimatableBody3D with a real collision box, so the truck
+## cannot be driven through them: you brake, overtake, or hit them.
 
 @export var car_count := 10
 @export var forward_car_count := 7
@@ -90,13 +91,18 @@ func _spawn_all() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 
+	# Lanes are road-space lateral offsets (see _frame): positive is the
+	# player's side of the road. Right-hand traffic, so same-direction cars
+	# keep right and oncoming cars keep to the far side. Both directions used
+	# to end up on the same (left) side because the offset was applied in
+	# travel space, which flips sign for oncoming cars.
 	# Oncoming lane: drives back down the curve towards the player.
 	for i in car_count:
-		_add_car(rng, -1.0, lane_offset, rng.randf_range(oncoming_speed_min, oncoming_speed_max))
+		_add_car(rng, -1.0, -lane_offset, rng.randf_range(oncoming_speed_min, oncoming_speed_max))
 
 	# Slow lane going the same way: rolling roadblocks worth overtaking.
 	for i in forward_car_count:
-		_add_car(rng, 1.0, -lane_offset, rng.randf_range(slow_lane_speed_min, slow_lane_speed_max))
+		_add_car(rng, 1.0, lane_offset, rng.randf_range(slow_lane_speed_min, slow_lane_speed_max))
 
 
 func _add_car(rng: RandomNumberGenerator, direction: float, lane: float, cruise: float) -> void:
@@ -117,7 +123,7 @@ func _add_car(rng: RandomNumberGenerator, direction: float, lane: float, cruise:
 	_distances.append(wrap_distance(spawn_spacing * float(index) + rng.randf_range(-8.0, 8.0), _length))
 
 
-func _build_car(index: int) -> Node3D:
+func _build_car(index: int) -> AnimatableBody3D:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value + index * 131
 
@@ -127,8 +133,19 @@ func _build_car(index: int) -> Node3D:
 	var body_height := 1.95 if is_van else 1.05
 	_lengths.append(vehicle_length)
 
-	var car := Node3D.new()
+	var car := AnimatableBody3D.new()
 	car.name = "Car%d" % index
+
+	# A solid box over the whole body, so the truck bounces off instead of
+	# passing through. Kinematic, so the car itself never gets pushed around.
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(1.9, body_height + 0.9, vehicle_length)
+
+	var collision := CollisionShape3D.new()
+	collision.name = "CollisionShape3D"
+	collision.shape = shape
+	collision.position = Vector3(0.0, (body_height + 0.9) * 0.5 - 0.05, 0.0)
+	car.add_child(collision)
 
 	var paint := StandardMaterial3D.new()
 	paint.albedo_color = BODY_COLORS[rng.randi_range(0, BODY_COLORS.size() - 1)]
@@ -281,6 +298,9 @@ func _gap_ahead(index: int) -> float:
 
 
 ## Position and orientation on the road for a given direction and lane.
+## The lane offset is applied in *road* space (the road's own right-hand
+## side), not in travel space: travel space flips for oncoming cars, which
+## is how both directions used to end up in the same lane.
 func _frame(distance: float, direction: float, lane: float) -> Transform3D:
 	var point := _curve.sample_baked(clampf(distance, 0.0, _length))
 	var ahead := _curve.sample_baked(clampf(distance + direction, 0.0, _length))
@@ -290,10 +310,14 @@ func _frame(distance: float, direction: float, lane: float) -> Transform3D:
 	if forward.length() < 0.001:
 		forward = Vector3.FORWARD
 
-	var right := forward.cross(Vector3.UP).normalized()
-	var basis := Basis(right, Vector3.UP, -forward)
+	var travel_right := forward.cross(Vector3.UP).normalized()
+	var basis := Basis(travel_right, Vector3.UP, -forward)
 
-	return Transform3D(basis, point + right * lane)
+	var road_forward := (_curve.sample_baked(clampf(distance + 1.0, 0.0, _length))
+		- _curve.sample_baked(clampf(distance - 1.0, 0.0, _length))).normalized()
+	var road_right := road_forward.cross(Vector3.UP).normalized()
+
+	return Transform3D(basis, point + road_right * lane)
 
 
 ## TimeOfDay calls this: headlights only earn their keep after dark.
@@ -306,6 +330,23 @@ func apply_time_of_day(night_factor: float) -> void:
 
 	for material in _lamp_materials:
 		material.emission_energy_multiplier = lerpf(0.15, 6.0, level)
+
+
+## Test hook: road-space lane offset of every car, in spawn order
+## (oncoming cars first, then same-direction cars).
+func car_lane_offsets() -> Array[float]:
+	return _lanes.duplicate()
+
+
+## Test hook: how many cars carry a working collision body.
+func car_collision_count() -> int:
+	var count := 0
+
+	for body in _bodies:
+		if body is AnimatableBody3D and body.get_node_or_null("CollisionShape3D") != null:
+			count += 1
+
+	return count
 
 
 ## Test hook: distances of the live cars.

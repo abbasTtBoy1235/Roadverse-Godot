@@ -122,6 +122,25 @@ func _ready() -> void:
 	_check(counts["oncoming"] == int(_traffic.get("car_count")), "the oncoming lane is full (%d)" % counts["oncoming"])
 	_check(counts["forward"] == int(_traffic.get("forward_car_count")), "the slow lane has traffic to overtake (%d)" % counts["forward"])
 
+	# Regression (user report, 2026-11-12): both directions of NPC traffic used
+	# to drive on the same (left) side of the road, and the truck passed
+	# straight through them. Lanes are road-space offsets now: oncoming cars
+	# keep to the far side, same-direction cars keep to the player's side, and
+	# every car carries a collision body.
+	var lane_offsets: Array = _traffic.call("car_lane_offsets")
+	var lanes_ok := lane_offsets.size() == expected_cars
+
+	for i in lane_offsets.size():
+		var should_be_negative := i < int(_traffic.get("car_count"))
+		if (float(lane_offsets[i]) < 0.0) != should_be_negative:
+			lanes_ok = false
+
+	_check(lanes_ok, "NPC traffic keeps to its own side of the road in both directions")
+	_check(int(_traffic.call("car_collision_count")) == expected_cars,
+		"every NPC car is solid, not a ghost (%d)" % int(_traffic.call("car_collision_count")))
+
+	_check_cockpit()
+
 	if _mission != null:
 		_check(_mission.gate_built, "the delivery gate was built")
 		_check(_mission.goal_distance > 100.0, "the gate sits down the road (%.0f m)" % _mission.goal_distance)
@@ -155,6 +174,40 @@ func _physics_process(delta: float) -> void:
 		_check_delivery()
 		Input.action_release("rv_throttle")
 		_finish()
+
+
+## The in-cab camera used to ignore the mouse and lag behind the seat on a
+## smoothing lerp. It must sit exactly on the driver's eye point and turn
+## with the mouse.
+func _check_cockpit() -> void:
+	var camera := _game.get_node_or_null("ChaseCamera") as ChaseCamera
+
+	if camera == null or _truck == null:
+		_check(false, "chase camera found for the cockpit check")
+		return
+
+	camera.mode = ChaseCamera.Mode.COCKPIT
+
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(120.0, 0.0)
+	camera.handle_input_event(motion)
+	camera.call("_process", 0.016)
+
+	_check(camera.is_cockpit(), "cockpit camera mode engages")
+	_check(camera.global_position.distance_to(camera.cockpit_seat_position()) < 0.05,
+		"the cockpit camera sits exactly on the driver's seat (%.3f m off)" % camera.global_position.distance_to(camera.cockpit_seat_position()))
+
+	var seat_local: Vector3 = _truck.global_transform.affine_inverse() * camera.global_position
+	_check(seat_local.z > -4.3 and seat_local.z < -2.7, "the driver's eyes are inside the cab, not the cargo box (z %.2f)" % seat_local.z)
+	_check(seat_local.x < 0.0, "the driver sits on the left seat (x %.2f)" % seat_local.x)
+
+	var truck_forward := -_truck.global_basis.z
+	var view_forward := -camera.global_basis.z
+	var dot := clampf(truck_forward.normalized().dot(view_forward.normalized()), -1.0, 1.0)
+	_check(dot < 0.995 and dot > 0.75, "the mouse turns the driver's head (%.0f deg off the nose)" % rad_to_deg(acos(dot)))
+
+	camera.mode = ChaseCamera.Mode.CHASE
+	camera.orbit.reset()
 
 
 func _check_drive() -> void:

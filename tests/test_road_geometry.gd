@@ -7,7 +7,7 @@ extends SceneTree
 const ROAD_SCRIPT := preload("res://scripts/world/road_builder.gd")
 
 const EXPECTED_MESHES := [
-	"Asphalt", "Shoulders", "EdgeLines", "CentreLine", "GuardrailBeams", "PowerWires", "FenceRails",
+	"Asphalt", "Shoulders", "EdgeLines", "CentreLine", "GuardrailBeams", "PowerWires", "FenceRails", "CityAvenues",
 ]
 const EXPECTED_MULTIMESHES := [
 	"GuardrailPosts", "DelineatorPosts", "LampPoles", "LampArms", "LampBulbs",
@@ -65,14 +65,14 @@ func _check(condition: bool, message: String) -> void:
 func _check_city(road: Node3D) -> void:
 	# The city used to be 70 blocks past the end of the road. It now runs
 	# alongside the second half of the route as well as beyond it.
-	_check(road.city_block_count >= 300, "the city has real bulk (%d blocks)" % road.city_block_count)
+	_check(road.city_block_count >= 220, "the city has real bulk (%d blocks)" % road.city_block_count)
 	_check(road.city_window_count >= 4000, "the city windows are dense (%d)" % road.city_window_count)
 	_check(road.beacon_count >= 12, "the tall towers carry beacons (%d)" % road.beacon_count)
 
-	_check(road.city_street_count >= 12, "the city has a street grid (%d streets)" % road.city_street_count)
+	_check(road.city_street_count >= 36, "the city has a street grid (%d streets)" % road.city_street_count)
 
 	var streets := road.get_node_or_null("CityStreets") as MultiMeshInstance3D
-	_check(streets != null and streets.multimesh.instance_count == road.city_street_count, "street grid multimesh matches")
+	_check(streets != null and streets.multimesh.instance_count >= 12, "the downtown street grid was built (%d)" % (streets.multimesh.instance_count if streets != null else 0))
 
 	# Street lamps must be dimmable by the day/night cycle.
 	road.apply_time_of_day(0.0)

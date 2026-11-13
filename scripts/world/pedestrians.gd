@@ -60,11 +60,17 @@ func _spawn_all() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 
-	var torso_mesh := BoxMesh.new()
-	torso_mesh.size = Vector3(0.44, 0.62, 0.26)
+	var torso_mesh := CapsuleMesh.new()
+	torso_mesh.radius = 0.17
+	torso_mesh.height = 0.68
+	torso_mesh.radial_segments = 8
+	torso_mesh.rings = 3
 
-	var head_mesh := BoxMesh.new()
-	head_mesh.size = Vector3(0.27, 0.3, 0.27)
+	var head_mesh := SphereMesh.new()
+	head_mesh.radius = 0.16
+	head_mesh.height = 0.32
+	head_mesh.radial_segments = 8
+	head_mesh.rings = 4
 
 	var leg_mesh := BoxMesh.new()
 	leg_mesh.size = Vector3(0.16, 0.58, 0.19)

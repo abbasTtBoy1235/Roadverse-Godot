@@ -84,6 +84,14 @@ var city_street_count := 0
 var city_lamp_count := 0
 var rooftop_count := 0
 var gantry_sign_count := 0
+## Route furniture from the details pass. Test hooks.
+var toll_distance := 0.0
+var toll_booth_count := 0
+var billboard_count := 0
+var chevron_count := 0
+var rest_stop_count := 0
+var lake_blob_count := 0
+var city_tier_count := 0
 ## Current lamp dimmer, 0 by day and 1 at night. Test hook.
 var lamp_level := 1.0
 
@@ -128,6 +136,11 @@ func build() -> void:
 	_build_fence()
 	_build_shrubs()
 	_build_overpass()
+	_build_rest_stop()
+	_build_lake()
+	_build_billboards()
+	_build_chevrons()
+	_build_toll_plaza()
 	_build_distant_hills()
 	_build_city_glow()
 	_build_prop_collision()
@@ -961,6 +974,24 @@ func _build_city_glow() -> void:
 	var pitch := 36.0
 	var city_start := _baked_length * 0.30
 
+	# The town you set out from: low blocks hugging the first stretch of
+	# road, so the run reads as town -> countryside -> toll -> big city.
+	var town_distance := 70.0
+
+	while town_distance < _baked_length * 0.16:
+		for side: float in [-1.0, 1.0]:
+			for column in 2:
+				if rng.randf() < 0.2:
+					continue
+
+				var town_w := rng.randf_range(14.0, 22.0)
+				var town_h := rng.randf_range(6.0, 18.0)
+				var town_basis := _basis(town_distance).scaled(Vector3(town_w, town_h, town_w))
+				transforms.append(Transform3D(town_basis, _place(town_distance, side * (46.0 + float(column) * 30.0), town_h * 0.5)))
+				road_points.append(_place(town_distance, 0.0, 0.0))
+
+		town_distance += 34.0
+
 	# Districts alongside the road, on both sides.
 	var distance := city_start + pitch * 0.5
 
@@ -1012,6 +1043,25 @@ func _build_city_glow() -> void:
 
 	city_block_count = transforms.size()
 	_add_multimesh("CityBlocks", mesh, _city_glow, transforms)
+
+	# Stepped crowns on the taller towers, so the skyline is not a row of
+	# shoeboxes: a narrower tier on top of every block over 34 m.
+	var tier_transforms: Array[Transform3D] = []
+
+	for block in transforms:
+		var size := block.basis.get_scale()
+
+		if size.y < 34.0:
+			continue
+
+		var tier_height := size.y * 0.22
+		var tier_basis := Basis(block.basis.x.normalized(), Vector3.UP, block.basis.z.normalized()) \
+			.scaled(Vector3(size.x * 0.55, tier_height, size.z * 0.55))
+		tier_transforms.append(Transform3D(tier_basis,
+			block.origin + Vector3.UP * (size.y * 0.5 + tier_height * 0.5 - 0.1)))
+
+	_add_multimesh("CityTiers", mesh, _city_glow, tier_transforms)
+	city_tier_count = tier_transforms.size()
 	_build_city_avenues(city_start, pitch)
 	_build_city_streets(end_point, end_direction, end_right)
 	_build_city_windows(transforms, road_points, rng)
@@ -1089,6 +1139,384 @@ func _build_city_avenues(city_start: float, pitch: float) -> void:
 	_add_multimesh("CityLampPoles", pole_mesh, _metal, pole_transforms)
 	_add_multimesh("CityLampBulbs", bulb_mesh, _lamp_glass, bulb_transforms)
 	city_lamp_count = bulb_transforms.size()
+
+
+
+## The toll plaza, roughly halfway between the town you leave and the city
+## you are heading to: canopy, four booth islands, three barrier arms.
+func _build_toll_plaza() -> void:
+	toll_distance = _baked_length * 0.48
+
+	var plaza := TollPlaza.new()
+	plaza.name = "TollPlaza"
+	plaza.toll_distance = toll_distance
+	plaza.transform = Transform3D(_basis(toll_distance), _place(toll_distance, 0.0, 0.0))
+	add_child(plaza)
+
+	var slab_mesh := BoxMesh.new()
+	slab_mesh.size = Vector3(19.5, 0.1, 48.0)
+
+	var slab := MeshInstance3D.new()
+	slab.name = "PlazaSlab"
+	slab.mesh = slab_mesh
+	slab.material_override = _concrete
+	slab.position = Vector3(0.0, 0.0, 0.0)
+	plaza.add_child(slab)
+
+	# Canopy on four pillars.
+	var pillar_mesh := CylinderMesh.new()
+	pillar_mesh.top_radius = 0.16
+	pillar_mesh.bottom_radius = 0.2
+	pillar_mesh.height = 5.7
+	pillar_mesh.radial_segments = 8
+
+	for px: float in [-8.8, 8.8]:
+		for pz: float in [-3.4, 3.4]:
+			var pillar := MeshInstance3D.new()
+			pillar.mesh = pillar_mesh
+			pillar.material_override = _metal
+			pillar.position = Vector3(px, 2.85, pz)
+			plaza.add_child(pillar)
+			prop_spots.append({"position": plaza.transform * pillar.position, "radius": 0.35})
+
+	var roof_mesh := BoxMesh.new()
+	roof_mesh.size = Vector3(19.5, 0.45, 9.5)
+
+	var roof := MeshInstance3D.new()
+	roof.name = "Canopy"
+	roof.mesh = roof_mesh
+	roof.material_override = _concrete
+	roof.position = Vector3(0.0, 5.7, 0.0)
+	plaza.add_child(roof)
+
+	var sign := Label3D.new()
+	sign.name = "TollSign"
+	sign.text = "TOLL"
+	sign.font_size = 160
+	sign.pixel_size = 0.01
+	sign.modulate = Color(1.0, 0.85, 0.4)
+	sign.position = Vector3(0.0, 5.7, 4.95)
+	plaza.add_child(sign)
+
+	# Booth islands between the lanes. Round booths, not boxes.
+	var island_mesh := BoxMesh.new()
+	island_mesh.size = Vector3(1.05, 0.24, 7.5)
+
+	var booth_mesh := CylinderMesh.new()
+	booth_mesh.top_radius = 0.6
+	booth_mesh.bottom_radius = 0.66
+	booth_mesh.height = 2.25
+	booth_mesh.radial_segments = 10
+
+	var booth_roof_mesh := CylinderMesh.new()
+	booth_roof_mesh.top_radius = 0.85
+	booth_roof_mesh.bottom_radius = 0.85
+	booth_roof_mesh.height = 0.16
+	booth_roof_mesh.radial_segments = 10
+
+	for lateral: float in [-5.05, -1.75, 1.75, 5.05]:
+		var island := MeshInstance3D.new()
+		island.mesh = island_mesh
+		island.material_override = _concrete
+		island.position = Vector3(lateral, 0.12, 0.0)
+		plaza.add_child(island)
+
+		var booth := MeshInstance3D.new()
+		booth.mesh = booth_mesh
+		booth.material_override = _metal
+		booth.position = Vector3(lateral, 1.36, 0.0)
+		plaza.add_child(booth)
+
+		var booth_roof := MeshInstance3D.new()
+		booth_roof.mesh = booth_roof_mesh
+		booth_roof.material_override = _concrete
+		booth_roof.position = Vector3(lateral, 2.62, 0.0)
+		plaza.add_child(booth_roof)
+
+		# Slimmer than the island and centred on the booth: at 1.3 m wide the
+		# box corners reached 5 cm into the centre lane and trucks landed on
+		# top of them after a teleport.
+		prop_spots.append({
+			"position": plaza.transform * Vector3(lateral, 1.4, 0.0),
+			"radius": 0.9,
+			"box": Vector3(0.95, 2.8, 7.0),
+			"basis": plaza.transform.basis,
+		})
+		toll_booth_count += 1
+
+	# Barrier arms: one per lane, all hinged on the booth line.
+	var arm_red := StandardMaterial3D.new()
+	arm_red.albedo_color = Color(0.85, 0.12, 0.1)
+	arm_red.emission_enabled = true
+	arm_red.emission = Color(0.9, 0.15, 0.1)
+	arm_red.emission_energy_multiplier = 0.7
+
+	var arm_white := _mat(Color(0.9, 0.9, 0.92), 0.5)
+
+	var post_mesh := BoxMesh.new()
+	post_mesh.size = Vector3(0.2, 1.05, 0.2)
+
+	var arm_mesh := BoxMesh.new()
+	arm_mesh.size = Vector3(0.78, 0.11, 0.11)
+
+	var arm_setup: Array = [[-1.75, -3.3], [1.75, 0.0], [5.05, 3.3]]
+
+	for i in arm_setup.size():
+		var pivot_x: float = arm_setup[i][0]
+
+		var post := MeshInstance3D.new()
+		post.mesh = post_mesh
+		post.material_override = _metal
+		post.position = Vector3(pivot_x, 0.52, 1.15)
+		plaza.add_child(post)
+
+		var pivot := Node3D.new()
+		pivot.name = "Arm%d" % i
+		pivot.position = Vector3(pivot_x, 1.02, 1.15)
+		plaza.add_child(pivot)
+
+		for segment in 3:
+			var bar := MeshInstance3D.new()
+			bar.mesh = arm_mesh
+			bar.material_override = arm_red if segment % 2 == 0 else arm_white
+			bar.position = Vector3(-(0.45 + float(segment) * 0.8), 0.0, 0.0)
+			pivot.add_child(bar)
+
+	# Lane lights on the canopy edge: red shut, green go.
+	var red_material := StandardMaterial3D.new()
+	red_material.albedo_color = Color(1.0, 0.15, 0.1)
+	red_material.emission_enabled = true
+	red_material.emission = Color(1.0, 0.12, 0.08)
+	red_material.emission_energy_multiplier = 3.0
+	red_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+	var green_material := StandardMaterial3D.new()
+	green_material.albedo_color = Color(0.2, 1.0, 0.35)
+	green_material.emission_enabled = true
+	green_material.emission = Color(0.15, 1.0, 0.3)
+	green_material.emission_energy_multiplier = 3.0
+	green_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+	var lamp_mesh := SphereMesh.new()
+	lamp_mesh.radius = 0.15
+	lamp_mesh.height = 0.3
+	lamp_mesh.radial_segments = 8
+	lamp_mesh.rings = 4
+
+	for i in arm_setup.size():
+		var lane_x: float = arm_setup[i][1]
+
+		var red := MeshInstance3D.new()
+		red.name = "LaneRed%d" % i
+		red.mesh = lamp_mesh
+		red.material_override = red_material
+		red.position = Vector3(lane_x, 4.85, 4.55)
+		plaza.add_child(red)
+
+		var green := MeshInstance3D.new()
+		green.name = "LaneGreen%d" % i
+		green.mesh = lamp_mesh
+		green.material_override = green_material
+		green.position = Vector3(lane_x, 4.85, 4.55)
+		green.visible = false
+		plaza.add_child(green)
+
+
+## A rest stop on the right: layby, shelter, bench and a lamp.
+func _build_rest_stop() -> void:
+	rest_stop_count = 1
+	var distance := _baked_length * 0.22
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_add_flat_quad(st, distance - 34.0, distance + 34.0, 9.6, 17.5, 0.015)
+	_commit(st, "RestLayby", _asphalt)
+
+	var root := Node3D.new()
+	root.name = "RestStop"
+	root.transform = Transform3D(_basis(distance), _place(distance, 0.0, 0.0))
+	add_child(root)
+
+	var post_mesh := CylinderMesh.new()
+	post_mesh.top_radius = 0.08
+	post_mesh.bottom_radius = 0.1
+	post_mesh.height = 2.6
+	post_mesh.radial_segments = 6
+
+	for px: float in [-1.7, 1.7]:
+		for pz: float in [-1.15, 1.15]:
+			var post := MeshInstance3D.new()
+			post.mesh = post_mesh
+			post.material_override = _bark
+			post.position = Vector3(14.5 + px, 1.3, pz)
+			root.add_child(post)
+			prop_spots.append({"position": root.transform * post.position, "radius": 0.22})
+
+	var shelter_roof_mesh := BoxMesh.new()
+	shelter_roof_mesh.size = Vector3(4.4, 0.16, 3.2)
+
+	var shelter_roof := MeshInstance3D.new()
+	shelter_roof.mesh = shelter_roof_mesh
+	shelter_roof.material_override = _concrete
+	shelter_roof.position = Vector3(14.5, 2.65, 0.0)
+	root.add_child(shelter_roof)
+
+	var bench_mesh := BoxMesh.new()
+	bench_mesh.size = Vector3(2.6, 0.12, 0.5)
+
+	var bench := MeshInstance3D.new()
+	bench.mesh = bench_mesh
+	bench.material_override = _bark
+	bench.position = Vector3(14.5, 0.55, 0.0)
+	root.add_child(bench)
+
+	# A lamp over the shelter, fed into the same dimmer as the road lamps.
+	var light := OmniLight3D.new()
+	light.name = "RestStopLamp"
+	light.position = Vector3(14.5, 3.4, 0.0)
+	light.light_color = Color(1.0, 0.82, 0.55)
+	light.light_energy = 5.0
+	light.omni_range = 26.0
+	light.shadow_enabled = false
+	root.add_child(light)
+	_lamp_lights.append(light)
+	_lamp_base_energy.append(light.light_energy)
+
+
+## A lake beside the road: overlapping flattened spheres read as water.
+func _build_lake() -> void:
+	var water := _mat(Color(0.06, 0.14, 0.22), 0.08)
+	water.metallic = 0.65
+	water.metallic_specular = 0.9
+
+	var mesh := SphereMesh.new()
+	mesh.radius = 1.0
+	mesh.height = 2.0
+	mesh.radial_segments = 14
+	mesh.rings = 6
+
+	var transforms: Array[Transform3D] = []
+	var centre := _baked_length * 0.42
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value + 31
+
+	for i in 6:
+		var radius := rng.randf_range(16.0, 30.0)
+		var position := _place(centre + rng.randf_range(-42.0, 42.0), 96.0 + rng.randf_range(-26.0, 34.0), 0.0)
+		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(radius, 0.25, radius))
+		transforms.append(Transform3D(basis, position))
+
+	_add_multimesh("LakeSurface", mesh, water, transforms)
+	lake_blob_count = transforms.size()
+
+
+## Billboards: the roadside economy announcing itself.
+func _build_billboards() -> void:
+	var entries: Array = [
+		[0.18, 1.0, "ICE COLD COLA"],
+		[0.62, -1.0, "HOTEL - NEXT EXIT"],
+		[0.85, 1.0, "DINER 24H - 500 M"],
+	]
+
+	for entry in entries:
+		var distance := _baked_length * float(entry[0])
+		var side: float = entry[1]
+		var lateral := side * (road_width * 0.5 + 8.0)
+
+		var root := Node3D.new()
+		root.name = "Billboard%d" % billboard_count
+		root.transform = Transform3D(_basis(distance), _place(distance, lateral, 0.0))
+		add_child(root)
+
+		var post_mesh := CylinderMesh.new()
+		post_mesh.top_radius = 0.14
+		post_mesh.bottom_radius = 0.18
+		post_mesh.height = 5.2
+		post_mesh.radial_segments = 6
+
+		for px: float in [-2.2, 2.2]:
+			var post := MeshInstance3D.new()
+			post.mesh = post_mesh
+			post.material_override = _metal
+			post.position = Vector3(px, 2.6, 0.0)
+			root.add_child(post)
+
+		var panel_mesh := BoxMesh.new()
+		panel_mesh.size = Vector3(7.2, 2.8, 0.22)
+
+		var panel := MeshInstance3D.new()
+		panel.mesh = panel_mesh
+		panel.material_override = _sign_face
+		panel.position = Vector3(0.0, 5.6, 0.0)
+		root.add_child(panel)
+
+		var label := Label3D.new()
+		label.name = "Label"
+		label.text = String(entry[2])
+		label.font_size = 110
+		label.pixel_size = 0.011
+		label.modulate = Color(0.1, 0.12, 0.2)
+		label.position = Vector3(0.0, 5.6, 0.2)
+		root.add_child(label)
+
+		billboard_count += 1
+
+
+## Chevron boards on the outside of the sharper bends.
+func _build_chevrons() -> void:
+	var last_placed := -200.0
+	var distance := 50.0
+
+	while distance < _baked_length - 40.0:
+		var before := _tangent(distance - 14.0)
+		var after := _tangent(distance + 14.0)
+
+		if before.angle_to(after) > 0.07 and distance - last_placed > 90.0:
+			# Outside of the bend: left-hand bends open to the right.
+			var turn := before.cross(after).y
+			var side := 1.0 if turn > 0.0 else -1.0
+
+			var root := Node3D.new()
+			root.name = "Chevron%d" % chevron_count
+			root.transform = Transform3D(_basis(distance), _place(distance, side * 10.6, 0.0))
+			add_child(root)
+
+			var post_mesh := CylinderMesh.new()
+			post_mesh.top_radius = 0.06
+			post_mesh.bottom_radius = 0.08
+			post_mesh.height = 1.5
+			post_mesh.radial_segments = 5
+
+			var post := MeshInstance3D.new()
+			post.mesh = post_mesh
+			post.material_override = _metal
+			post.position = Vector3(0.0, 0.75, 0.0)
+			root.add_child(post)
+
+			var panel_mesh := BoxMesh.new()
+			panel_mesh.size = Vector3(1.6, 0.6, 0.06)
+
+			var panel := MeshInstance3D.new()
+			panel.mesh = panel_mesh
+			panel.material_override = _sign_face
+			panel.position = Vector3(0.0, 1.55, 0.0)
+			root.add_child(panel)
+
+			var slat_mesh := BoxMesh.new()
+			slat_mesh.size = Vector3(0.5, 0.13, 0.05)
+
+			for i in 3:
+				var slat := MeshInstance3D.new()
+				slat.mesh = slat_mesh
+				slat.material_override = _reflector
+				slat.position = Vector3(-0.5 + float(i) * 0.5, 1.55, 0.06)
+				slat.rotation.z = -0.6 * side
+				root.add_child(slat)
+
+			chevron_count += 1
+			last_placed = distance
+
+		distance += 30.0
 
 
 ## A street grid under the end-of-road city, so the blocks sit in streets
@@ -1294,7 +1722,8 @@ func _build_prop_collision() -> void:
 			var collision := CollisionShape3D.new()
 			collision.shape = shape
 			var position: Vector3 = spot["position"]
-			collision.transform = Transform3D(Basis(), position)
+			var spot_basis: Basis = spot.get("basis", Basis())
+			collision.transform = Transform3D(spot_basis, position)
 			body.add_child(collision)
 		else:
 			var key := "%.2f" % radius

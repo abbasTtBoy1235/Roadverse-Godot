@@ -39,6 +39,7 @@ var _lengths: Array[float] = []
 var _wheel_pivots: Array = []
 var _headlights: Array[OmniLight3D] = []
 var _lamp_materials: Array[StandardMaterial3D] = []
+var _rounded_bodies := 0
 
 const BODY_COLORS := [
 	Color(0.55, 0.14, 0.12), Color(0.13, 0.3, 0.6), Color(0.8, 0.82, 0.85),
@@ -158,14 +159,23 @@ func _build_car(index: int) -> AnimatableBody3D:
 	paint.albedo_color = BODY_COLORS[rng.randi_range(0, BODY_COLORS.size() - 1)]
 	paint.metallic = 0.55
 	paint.roughness = 0.38
-
-	var body_mesh := BoxMesh.new()
-	body_mesh.size = Vector3(1.9, body_height, vehicle_length)
+	paint.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	var body := MeshInstance3D.new()
-	body.mesh = body_mesh
 	body.material_override = paint
-	body.position = Vector3(0.0, 0.42 + body_height * 0.5, 0.0)
+
+	if is_van:
+		# Vans really are boxes; they keep theirs.
+		var body_mesh := BoxMesh.new()
+		body_mesh.size = Vector3(1.9, body_height, vehicle_length)
+		body.mesh = body_mesh
+		body.position = Vector3(0.0, 0.42 + body_height * 0.5, 0.0)
+	else:
+		# Cars get an extruded side profile: sloped nose, raked windscreen,
+		# a roofline and a tail. Silhouette does what paint cannot.
+		body.mesh = _car_body_mesh(vehicle_length)
+		_rounded_bodies += 1
+
 	car.add_child(body)
 
 	if not is_van:
@@ -175,12 +185,12 @@ func _build_car(index: int) -> AnimatableBody3D:
 		glass.roughness = 0.12
 
 		var cabin_mesh := BoxMesh.new()
-		cabin_mesh.size = Vector3(1.7, 0.55, vehicle_length * 0.45)
+		cabin_mesh.size = Vector3(1.66, 0.34, vehicle_length * 0.33)
 
 		var cabin := MeshInstance3D.new()
 		cabin.mesh = cabin_mesh
 		cabin.material_override = glass
-		cabin.position = Vector3(0.0, 1.72, 0.15)
+		cabin.position = Vector3(0.0, 1.21, -0.05)
 		car.add_child(cabin)
 
 	# Wheels on pivots so they can roll with the car's speed.
@@ -252,6 +262,62 @@ func _build_car(index: int) -> AnimatableBody3D:
 	_headlights.append(light)
 
 	return car
+
+
+## A car body as an extruded side profile (Vector2 = forward, height).
+## The outline loop becomes the skin; the two ends are fanned shut.
+func _car_body_mesh(vehicle_length: float) -> ArrayMesh:
+	var scale_z := vehicle_length / 4.5
+	var half := 0.92
+	var profile: Array[Vector2] = [
+		Vector2(-2.25, 0.38), Vector2(-2.3, 0.72), Vector2(-1.55, 0.9),
+		Vector2(-0.75, 1.36), Vector2(0.55, 1.4), Vector2(1.25, 1.0),
+		Vector2(2.2, 0.96), Vector2(2.25, 0.4),
+	]
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	var count := profile.size()
+
+	var point := func(p: Vector2, x: float) -> Vector3:
+		return Vector3(x, p.y, p.x * scale_z)
+
+	# Skin: one quad per profile edge.
+	for i in count:
+		var a := profile[i]
+		var b := profile[(i + 1) % count]
+
+		st.add_vertex(point.call(a, -half))
+		st.add_vertex(point.call(b, -half))
+		st.add_vertex(point.call(b, half))
+
+		st.add_vertex(point.call(a, -half))
+		st.add_vertex(point.call(b, half))
+		st.add_vertex(point.call(a, half))
+
+	# Side caps: fans around the profile centroid.
+	var centroid := Vector2.ZERO
+
+	for p in profile:
+		centroid += p
+
+	centroid /= float(count)
+
+	for i in count:
+		var a := profile[i]
+		var b := profile[(i + 1) % count]
+
+		st.add_vertex(point.call(centroid, half))
+		st.add_vertex(point.call(a, half))
+		st.add_vertex(point.call(b, half))
+
+		st.add_vertex(point.call(centroid, -half))
+		st.add_vertex(point.call(b, -half))
+		st.add_vertex(point.call(a, -half))
+
+	st.generate_normals()
+	return st.commit()
 
 
 func _lamp_material() -> StandardMaterial3D:
@@ -337,6 +403,11 @@ func apply_time_of_day(night_factor: float) -> void:
 
 	for material in _lamp_materials:
 		material.emission_energy_multiplier = lerpf(0.15, 6.0, level)
+
+
+## Test hook: how many cars got the rounded profile body (vans stay boxy).
+func rounded_car_count() -> int:
+	return _rounded_bodies
 
 
 ## Test hook: road-space lane offset of every car, in spawn order

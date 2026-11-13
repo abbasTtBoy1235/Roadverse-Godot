@@ -43,6 +43,7 @@ var _fuel: FuelTank
 
 
 func _ready() -> void:
+	add_to_group("rv_truck")
 	gearbox = Gearbox.new(gear_ratios, final_drive, upshift_rpm, downshift_rpm)
 	_lights = get_node_or_null("Lights") as TruckLights
 	_fuel = get_node_or_null("FuelTank") as FuelTank

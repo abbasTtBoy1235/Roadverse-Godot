@@ -61,6 +61,12 @@ func record_failure(summary: Dictionary) -> void:
 	save_progress()
 
 
+## Toll plazas and the like: money out of the wallet.
+func pay_toll(amount: int) -> void:
+	cash = maxi(0, cash - amount)
+	save_progress()
+
+
 func save_progress() -> void:
 	var config := ConfigFile.new()
 	config.set_value("career", "job_index", job_index)

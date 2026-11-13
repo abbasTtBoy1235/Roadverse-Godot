@@ -7,13 +7,13 @@ extends SceneTree
 const ROAD_SCRIPT := preload("res://scripts/world/road_builder.gd")
 
 const EXPECTED_MESHES := [
-	"Asphalt", "Shoulders", "EdgeLines", "CentreLine", "GuardrailBeams", "PowerWires", "FenceRails", "CityAvenues", "CitySidewalks",
+	"Asphalt", "Shoulders", "EdgeLines", "CentreLine", "GuardrailBeams", "PowerWires", "FenceRails", "CityAvenues", "CitySidewalks", "RestLayby",
 ]
 const EXPECTED_MULTIMESHES := [
 	"GuardrailPosts", "DelineatorPosts", "LampPoles", "LampArms", "LampBulbs",
 	"TreeTrunks", "TreeCanopies", "Rocks", "PowerPoles", "DistantHills",
 	"RoadStuds", "KmMarkerPosts", "KmMarkerPlates", "FencePosts", "Shrubs", "CityBlocks", "CityStreets", "CityWindows",
-	"CityLampPoles", "CityLampBulbs", "CityRooftops",
+	"CityLampPoles", "CityLampBulbs", "CityRooftops", "CityTiers", "LakeSurface",
 ]
 
 var _checks := 0
@@ -39,6 +39,7 @@ func _initialize() -> void:
 	_check_collision(road)
 	_check_wetness(road)
 	_check_city(road)
+	_check_route_furniture(road)
 	_check_determinism()
 
 	var lights := _count_lamps(road)
@@ -101,6 +102,27 @@ func _check_city(road: Node3D) -> void:
 				alongside += 1
 
 		_check(alongside >= 80, "districts run alongside the road, not only past its end (%d)" % alongside)
+
+
+func _check_route_furniture(road: Node3D) -> void:
+	var length: float = road.get("curve").get_baked_length()
+
+	# The toll plaza sits between the start town and the destination city.
+	_check(road.toll_distance > length * 0.4 and road.toll_distance < length * 0.56,
+		"the toll plaza is midway along the route (%.0f of %.0f m)" % [road.toll_distance, length])
+	_check(road.toll_booth_count == 4, "the toll plaza has four booths (%d)" % road.toll_booth_count)
+	_check(road.get_node_or_null("TollPlaza/Arm0") != null, "the toll arms were built")
+	_check(road.get_node_or_null("TollPlaza/TollSign") != null, "the toll canopy carries its sign")
+
+	_check(road.billboard_count == 3, "billboards line the route (%d)" % road.billboard_count)
+
+	var billboard_label := road.get_node_or_null("Billboard0/Label") as Label3D
+	_check(billboard_label != null and billboard_label.text == "ICE COLD COLA", "the first billboard advertises cola")
+
+	_check(road.chevron_count >= 2, "chevron boards mark the sharp bends (%d)" % road.chevron_count)
+	_check(road.rest_stop_count == 1, "there is a rest stop (%d)" % road.rest_stop_count)
+	_check(road.lake_blob_count == 6, "the lake was built (%d blobs)" % road.lake_blob_count)
+	_check(road.city_tier_count >= 15, "tall towers get stepped crowns (%d)" % road.city_tier_count)
 
 
 func _check_curve(road: Node3D) -> void:

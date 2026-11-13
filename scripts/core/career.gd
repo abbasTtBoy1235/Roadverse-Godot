@@ -20,6 +20,7 @@ var total_metres := 0.0
 var perfect_runs := 0
 var unlocked_achievements: Array = []
 var leaderboard: Array = []
+var upgrades: Dictionary = {"engine": 0, "brakes": 0, "tank": 0}
 var last_summary: Dictionary = {}
 
 
@@ -39,9 +40,32 @@ func switch_slot(slot: int) -> void:
 	perfect_runs = 0
 	unlocked_achievements = []
 	leaderboard = []
+	upgrades = {"engine": 0, "brakes": 0, "tank": 0}
 	last_summary = {}
 	_load_slot(current_slot)
 	_save_profile()
+
+
+func upgrade_level(id: String) -> int:
+	return int(upgrades.get(id, 0))
+
+
+## Spend cash on the workshop. False when maxed or too poor.
+func buy_upgrade(id: String) -> bool:
+	var level := upgrade_level(id)
+
+	if level >= CareerMath.upgrade_max_level(id):
+		return false
+
+	var cost := CareerMath.upgrade_cost(id, level)
+
+	if cash < cost:
+		return false
+
+	cash -= cost
+	upgrades[id] = level + 1
+	save_progress()
+	return true
 
 
 func set_driver_name(value: String) -> void:
@@ -139,6 +163,10 @@ func save_progress() -> void:
 	config.set_value("career", "perfect_runs", perfect_runs)
 	config.set_value("career", "achievements", ",".join(PackedStringArray(unlocked_achievements)))
 	config.set_value("career", "leaderboard", JSON.stringify(leaderboard))
+
+	for id in upgrades:
+		config.set_value("career", "upgrade_" + String(id), int(upgrades[id]))
+
 	config.save(CareerMath.slot_path(current_slot))
 
 
@@ -183,6 +211,9 @@ func _load_slot(slot: int) -> void:
 	var saved_board = JSON.parse_string(String(config.get_value("career", "leaderboard", "[]")))
 	leaderboard = saved_board if saved_board is Array else []
 
+	for id in upgrades:
+		upgrades[id] = clampi(int(config.get_value("career", "upgrade_" + String(id), 0)), 0, 3)
+
 
 func reset_progress() -> void:
 	job_index = 0
@@ -193,5 +224,6 @@ func reset_progress() -> void:
 	perfect_runs = 0
 	unlocked_achievements = []
 	leaderboard = []
+	upgrades = {"engine": 0, "brakes": 0, "tank": 0}
 	last_summary = {}
 	save_progress()

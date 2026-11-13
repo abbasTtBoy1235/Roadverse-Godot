@@ -68,19 +68,19 @@ That runs three steps headlessly:
 | `--import` | the project imports, every script compiles, all `class_name`s register |
 | `tests/test_gearbox.gd` | gearbox logic — 20 checks |
 | `tests/test_day_cycle.gd` | day/night model and sky gradient — 30 checks |
-| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots and signals — 181 checks |
+| `tests/test_road_geometry.gd` | procedural road, toll plaza, two cities, depots, signals and roadworks — 184 checks |
 | `tests/test_camera_orbit.gd` | camera orbit maths — 15 checks |
-| `tests/ui_flow.tscn` | menus, settings persistence, camera wiring, minimap and slots — 70 checks |
+| `tests/ui_flow.tscn` | menus, settings, camera wiring, minimap, slots, workshop and gamepad — 79 checks |
 | `tests/camera_follow.tscn` | the camera keeps up with the truck — 8 checks |
 | `tests/test_audio_traffic.gd` | engine synth, traffic wrap, car-following and signal maths — 23 checks |
 | `tests/test_weather_noise.gd` | tyre, wind, fog, wetness, grip and ambience maths — 25 checks |
 | `tests/test_mission.gd` | damage, scoring, arrival and beacon maths — 17 checks |
-| `tests/test_career.gd` | routes, pay, ranks, job kinds, leaderboard, achievements and save slots — 58 checks |
+| `tests/test_career.gd` | routes, pay, ranks, job kinds, leaderboard, achievements, slots and upgrades — 63 checks |
 | `tests/drive_state.tscn` | wheels, audio, traffic, rain, barriers, props, a full delivery, the payout, the fuel burn, the fitted truck model and no second trailer |
 | `tests/mission_failure.tscn` | a wrecked load fails the job and pays nothing — 11 checks |
 | `tests/smoke_test.tscn` | real physics — 9 checks |
 
-**566 checks total.** The same suite runs on every push in GitHub Actions
+**583 checks total.** The same suite runs on every push in GitHub Actions
 (`.github/workflows/verify.yml`), which downloads the Godot binary and calls `tools/verify.sh`
 — no licence, no secrets, no containers.
 
@@ -143,6 +143,8 @@ throttle via `Input.action_press`, and asserts that the truck:
 | Freight depots | a warehouse, dock canopy, marked loading bay and container stacks in each city: `LOADING DEPOT` where every job starts, `DELIVERY DEPOT` beside the destination gate |
 | Traffic signals | two signalised zebra crossings per city on a 16 s cycle; pedestrians cross on the red phase, and NPC traffic brakes to a stop at it (amber at the line means clear the crossing) |
 | Fuel station | canopy, six pumps and a shop at 35% of the route — park in the bay and the pumps fill the tank at $2/L, billed to the career wallet |
+| Roadworks | a coned taper, shoulder barriers and a ROADWORKS 30 sign at 58% of the route; the HUD enforces its 30 limit in that window |
+| Controls | keyboard and mouse, plus a full gamepad map (stick steers, triggers pedal, face buttons switch) bound in `InputSetup` |
 | Traffic | 17 NPC cars and vans looping both lanes, with spinning wheels, brake lamps and headlights |
 | Barrier | the guardrails are real collision boxes, so the truck bounces off instead of driving through |
 | City | 400+ blocks across the two cities and the downtown beyond the end, on a real street grid with avenues and cross streets, 8,200 lit windows, 12 tower beacons |
@@ -197,6 +199,9 @@ is used and nothing else changes. Requirements (format, axis, scale, licence) ar
 - **Results screen.** Delivered or wrecked, the world pauses, the numbers are on screen, and
   `Enter` takes the next route (fresh scene, fresh seed, fresh road).
 - Saved in `user://career.cfg` — job number, cash, deliveries and best score.
+- **The workshop.** Career cash buys three upgrade lines, three levels each: engine tune
+  (+12% torque per level), brake kit (+15%) and a long-range tank (+20 L per level, 120 L
+  maxed). They are fitted to the truck at spawn and live in the active slot's save.
 - **Three save slots and a driver profile.** The CAREER panel names the driver and switches
   between `career_slot0..2.cfg`; the profile file remembers who you are and which slot is
   live, and pre-slot careers migrate into slot 1 automatically.

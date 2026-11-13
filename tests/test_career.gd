@@ -82,6 +82,11 @@ func _test_leaderboard_and_achievements() -> void:
 	_check(CareerMath.achievement_name("flawless") == "White gloves", "achievements have display names")
 	_check(CareerMath.slot_path(0) != CareerMath.slot_path(2), "save slots are separate files")
 	_check(CareerMath.slot_path(9) == CareerMath.slot_path(2), "slot numbers are clamped")
+	_check(CareerMath.upgrade_cost("engine", 0) == 800, "the first engine tune costs $800")
+	_check(CareerMath.upgrade_cost("engine", 1) == 1600, "the second level costs double")
+	_check(CareerMath.torque_multiplier(3) > 1.3, "a maxed engine pulls much harder (x%.2f)" % CareerMath.torque_multiplier(3))
+	_check(CareerMath.brake_multiplier(2) > 1.25, "brake kits bite harder (x%.2f)" % CareerMath.brake_multiplier(2))
+	_check(is_equal_approx(CareerMath.tank_capacity(3), 120.0), "a maxed tank doubles the range (%.0f L)" % CareerMath.tank_capacity(3))
 
 
 func _test_cargo_rotation() -> void:

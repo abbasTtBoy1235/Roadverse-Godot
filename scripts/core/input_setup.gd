@@ -26,6 +26,26 @@ const MOUSE_ACTIONS := {
 	"rv_look": MOUSE_BUTTON_RIGHT,
 }
 
+## Gamepad bindings: action name -> [buttons], and the two analogue axes.
+const PAD_BUTTONS := {
+	"rv_handbrake": [JOY_BUTTON_A],
+	"rv_shift_up": [JOY_BUTTON_RIGHT_SHOULDER],
+	"rv_shift_down": [JOY_BUTTON_LEFT_SHOULDER],
+	"rv_toggle_headlights": [JOY_BUTTON_Y],
+	"rv_toggle_camera": [JOY_BUTTON_X],
+	"rv_restart": [JOY_BUTTON_BACK],
+	"rv_pause": [JOY_BUTTON_START],
+	"rv_next_job": [JOY_BUTTON_A],
+}
+
+## action -> (axis, direction): the stick steers, the triggers pedal.
+const PAD_AXES := {
+	"rv_steer_left": [JOY_AXIS_LEFT_X, -1.0],
+	"rv_steer_right": [JOY_AXIS_LEFT_X, 1.0],
+	"rv_throttle": [JOY_AXIS_TRIGGER_RIGHT, 1.0],
+	"rv_brake": [JOY_AXIS_TRIGGER_LEFT, 1.0],
+}
+
 
 func _ready() -> void:
 	ensure_registered()
@@ -49,6 +69,45 @@ static func ensure_registered() -> void:
 		var mouse_event := InputEventMouseButton.new()
 		mouse_event.button_index = wanted
 		InputMap.action_add_event(action_name, mouse_event)
+
+	for action_name: String in PAD_BUTTONS:
+		if not InputMap.has_action(action_name):
+			InputMap.add_action(action_name, 0.2)
+
+		for button: JoyButton in PAD_BUTTONS[action_name]:
+			var present := false
+
+			for event: InputEvent in InputMap.action_get_events(action_name):
+				if event is InputEventJoypadButton and event.button_index == button:
+					present = true
+					break
+
+			if present:
+				continue
+
+			var pad_event := InputEventJoypadButton.new()
+			pad_event.button_index = button
+			InputMap.action_add_event(action_name, pad_event)
+
+	for action_name: String in PAD_AXES:
+		if not InputMap.has_action(action_name):
+			InputMap.add_action(action_name, 0.2)
+
+		var spec: Array = PAD_AXES[action_name]
+		var present := false
+
+		for event: InputEvent in InputMap.action_get_events(action_name):
+			if event is InputEventJoypadMotion and event.axis == (spec[0] as JoyAxis) and is_equal_approx(event.axis_value, float(spec[1])):
+				present = true
+				break
+
+		if present:
+			continue
+
+		var axis_event := InputEventJoypadMotion.new()
+		axis_event.axis = spec[0] as JoyAxis
+		axis_event.axis_value = float(spec[1])
+		InputMap.action_add_event(action_name, axis_event)
 
 	for action_name: String in ACTIONS:
 		if not InputMap.has_action(action_name):

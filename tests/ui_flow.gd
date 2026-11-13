@@ -75,6 +75,17 @@ func _check_menu() -> void:
 		_check(int(career.get("cash")) == 500, "slot 2 kept its own wallet ($%d)" % int(career.get("cash")))
 		career.call("switch_slot", 0)
 
+	_check(menu.find_child("Upgrade_engine", true, false) != null, "the workshop sells engine tunes")
+
+	if career != null:
+		career.call("switch_slot", 2)
+		career.set("cash", 1000)
+		_check(bool(career.call("buy_upgrade", "engine")), "cash buys the first engine level")
+		_check(int(career.call("upgrade_level", "engine")) == 1, "the engine is now level 1")
+		_check(int(career.get("cash")) == 200, "the tune was paid for ($%d left)" % int(career.get("cash")))
+		_check(not bool(career.call("buy_upgrade", "engine")), "level 2 needs more cash than that")
+		career.call("switch_slot", 0)
+
 	_check(menu.find_child("VolumeSlider", true, false) != null, "settings has a volume slider")
 	_check(menu.find_child("FovSlider", true, false) != null, "settings has a camera FOV slider")
 	_check(menu.find_child("HeightSlider", true, false) != null, "settings has a camera height slider")
@@ -236,3 +247,21 @@ func _check_camera_wiring() -> void:
 	var hud_script: GDScript = load("res://scripts/ui/hud.gd")
 	_check(int(hud_script.speed_limit_for(0.2)) == 90, "open road limit is 90")
 	_check(int(hud_script.speed_limit_for(0.85)) == 50, "the city limit is 50")
+	_check(int(hud_script.speed_limit_for(0.64)) == 30, "the roadworks limit is 30")
+
+	# The gamepad is bound too: buttons for the switches, axes for the pedals.
+	InputSetup.ensure_registered()
+
+	var pad_buttons := 0
+	var pad_axes := 0
+
+	for action in InputMap.get_actions():
+		for event in InputMap.action_get_events(action):
+			if event is InputEventJoypadButton:
+				pad_buttons += 1
+			elif event is InputEventJoypadMotion:
+				pad_axes += 1
+
+	_check(pad_buttons >= 8, "the gamepad buttons are bound (%d)" % pad_buttons)
+	_check(pad_axes >= 4, "the stick and triggers are bound (%d axes)" % pad_axes)
+	_check(Input.get_action_strength("rv_throttle") >= 0.0, "the throttle action reads on every device")

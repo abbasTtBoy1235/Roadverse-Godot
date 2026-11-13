@@ -102,8 +102,12 @@ func _panel_style() -> StyleBoxFlat:
 	return style
 
 
-## Speed limit by route progress: open road, then the city limit.
+## Speed limit by route progress (of the goal distance): the roadworks
+## window first, then the city limit, else the open road.
 static func speed_limit_for(progress: float) -> int:
+	if progress > 0.60 and progress < 0.68:
+		return 30
+
 	return 50 if progress > 0.68 else 90
 
 

@@ -67,6 +67,18 @@ func _ready() -> void:
 				_traction_wheels.append(child)
 				_wheel_radius = child.wheel_radius
 
+	# Workshop upgrades bought in the career menu are fitted before the
+	# first shift: more torque, stronger brakes, a bigger tank.
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		peak_torque_nm *= CareerMath.torque_multiplier(int(career.call("upgrade_level", "engine")))
+		max_brake *= CareerMath.brake_multiplier(int(career.call("upgrade_level", "brakes")))
+
+		if _fuel != null:
+			_fuel.capacity_litres = CareerMath.tank_capacity(int(career.call("upgrade_level", "tank")))
+			_fuel.litres = _fuel.capacity_litres
+
 	if _lights != null:
 		_lights.set_headlights(true)
 

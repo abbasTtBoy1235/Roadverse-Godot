@@ -21,6 +21,8 @@ var career_stats_label: Label
 var reset_career_button: Button
 var driver_name_edit: LineEdit
 var slot_option: OptionButton
+var upgrade_buttons: Dictionary = {}
+var upgrade_labels: Dictionary = {}
 
 var _settings_panel: PanelContainer
 var _help_panel: PanelContainer
@@ -381,6 +383,25 @@ func _build_career_panel() -> void:
 	career_stats_label = _panel_text(column, "")
 	career_stats_label.name = "CareerStats"
 
+	for id in ["engine", "brakes", "tank"]:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		column.add_child(row)
+
+		var label := Label.new()
+		label.add_theme_font_size_override("font_size", 15)
+		label.add_theme_color_override("font_color", Color(0.78, 0.81, 0.9))
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		upgrade_labels[id] = label
+
+		var buy := Button.new()
+		buy.name = "Upgrade_" + id
+		buy.text = "BUY"
+		buy.pressed.connect(_on_buy_upgrade.bind(id))
+		row.add_child(buy)
+		upgrade_buttons[id] = buy
+
 	reset_career_button = _make_button(column, "ResetCareerButton", "RESET CAREER")
 	reset_career_button.pressed.connect(_on_reset_career_pressed)
 
@@ -432,6 +453,20 @@ func _refresh_career_panel() -> void:
 			names.append(CareerMath.achievement_name(String(id)))
 
 		career_stats_label.text += "\n\n🏆 %s" % ", ".join(PackedStringArray(names))
+
+	for id in upgrade_labels:
+		var level := int(career.call("upgrade_level", id))
+		var max_level := CareerMath.upgrade_max_level(id)
+		var label := upgrade_labels[id] as Label
+		var buy := upgrade_buttons[id] as Button
+
+		if level >= max_level:
+			label.text = "%s — Lv %d (MAX)" % [String(CareerMath.UPGRADES[id]["name"]), level]
+			buy.disabled = true
+		else:
+			var cost := CareerMath.upgrade_cost(id, level)
+			label.text = "%s — Lv %d · next $%d" % [String(CareerMath.UPGRADES[id]["name"]), level, cost]
+			buy.disabled = cash < cost
 
 
 func _show_only(panel: PanelContainer) -> void:
@@ -514,6 +549,15 @@ func _on_career_pressed() -> void:
 
 func _on_help_pressed() -> void:
 	_show_only(_help_panel)
+
+
+func _on_buy_upgrade(id: String) -> void:
+	var career := get_node_or_null("/root/Career")
+
+	if career != null:
+		career.call("buy_upgrade", id)
+
+	_refresh_career_panel()
 
 
 func _on_driver_name_submitted(value: String) -> void:

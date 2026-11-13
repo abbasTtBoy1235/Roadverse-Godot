@@ -109,6 +109,10 @@ var _signal_green: StandardMaterial3D
 ## full length). Instance transforms cannot be read back headlessly, so the
 ## layout is recorded here. Test hook.
 var city_block_distances: Array[float] = []
+## The roadworks zone: cones, barriers, a 30 limit. Test hooks.
+var roadworks_distance := 0.0
+var roadworks_cone_count := 0
+
 ## The fuel stop between the origin city and the toll. Test hooks.
 var gas_station_position := Vector3.ZERO
 var gas_station_distance := 0.0
@@ -177,6 +181,7 @@ func build() -> void:
 	_build_city_glow()
 	_build_depots()
 	_build_gas_station()
+	_build_roadworks()
 	_build_halos()
 	_build_prop_collision()
 	_build_collision()
@@ -1885,6 +1890,60 @@ func direction_at(distance: float) -> Vector3:
 
 
 ## Solid props: trees, rocks and the overpass pillars.
+
+
+## Half the carriageway is dug up at 58%: a taper of cones, two barriers
+## and a warning sign. Cones are drive-overable (no collision), barriers
+## on the shoulder are not.
+func _build_roadworks() -> void:
+	roadworks_distance = _baked_length * 0.58
+
+	var works := Node3D.new()
+	works.name = "Roadworks"
+	works.transform = Transform3D(_basis(roadworks_distance), _place(roadworks_distance, 0.0, 0.0))
+	add_child(works)
+
+	var cone_mesh := CylinderMesh.new()
+	cone_mesh.top_radius = 0.06
+	cone_mesh.bottom_radius = 0.16
+	cone_mesh.height = 0.55
+	cone_mesh.radial_segments = 8
+
+	var cone_mat := _mat(Color(0.9, 0.4, 0.08), 0.7)
+
+	for i in 9:
+		var cone := MeshInstance3D.new()
+		cone.mesh = cone_mesh
+		cone.material_override = cone_mat
+		cone.position = Vector3(lerpf(5.4, 3.9, float(i) / 8.0), 0.28, -16.0 + float(i) * 4.0)
+		works.add_child(cone)
+		roadworks_cone_count += 1
+
+	var barrier_mesh := BoxMesh.new()
+	barrier_mesh.size = Vector3(0.5, 1.1, 6.0)
+
+	for z: float in [-10.0, 12.0]:
+		var barrier := MeshInstance3D.new()
+		barrier.mesh = barrier_mesh
+		barrier.material_override = _concrete
+		barrier.position = Vector3(7.6, 0.55, z)
+		works.add_child(barrier)
+
+		prop_spots.append({
+			"position": works.transform * barrier.position,
+			"radius": 1.0,
+			"box": Vector3(0.5, 1.1, 6.0),
+			"basis": _basis(roadworks_distance),
+		})
+
+	var sign := Label3D.new()
+	sign.name = "RoadworksSign"
+	sign.text = "ROADWORKS 30"
+	sign.font_size = 128
+	sign.pixel_size = 0.01
+	sign.modulate = Color(1.0, 0.6, 0.2)
+	sign.position = Vector3(9.5, 2.6, -22.0)
+	works.add_child(sign)
 
 
 ## A filling station at the roadside: canopy, six pumps, a small shop and

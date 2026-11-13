@@ -34,6 +34,38 @@ static func route_length(job_index: int) -> float:
 	return 1250.0 + float(maxi(0, job_index) % 4) * 240.0
 
 
+## Workshop upgrades, bought with career cash: three levels each.
+const UPGRADES := {
+	"engine": {"name": "Engine tune", "base_cost": 800, "max_level": 3},
+	"brakes": {"name": "Brake kit", "base_cost": 600, "max_level": 3},
+	"tank": {"name": "Long-range tank", "base_cost": 700, "max_level": 3},
+}
+
+
+## Price of the next level (level is the one you already own).
+static func upgrade_cost(id: String, level: int) -> int:
+	if not UPGRADES.has(id):
+		return 0
+
+	return int(UPGRADES[id]["base_cost"]) * (clampi(level, 0, 3) + 1)
+
+
+static func upgrade_max_level(id: String) -> int:
+	return int(UPGRADES[id]["max_level"]) if UPGRADES.has(id) else 0
+
+
+static func torque_multiplier(engine_level: int) -> float:
+	return 1.0 + 0.12 * float(clampi(engine_level, 0, 3))
+
+
+static func brake_multiplier(brake_level: int) -> float:
+	return 1.0 + 0.15 * float(clampi(brake_level, 0, 3))
+
+
+static func tank_capacity(tank_level: int) -> float:
+	return 60.0 + 20.0 * float(clampi(tank_level, 0, 3))
+
+
 ## Save slots live side by side; the profile remembers which one is live.
 static func slot_path(slot: int) -> String:
 	return "user://career_slot%d.cfg" % clampi(slot, 0, 2)

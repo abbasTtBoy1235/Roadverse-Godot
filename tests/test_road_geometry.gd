@@ -111,6 +111,8 @@ func _check_route_furniture(road: Node3D) -> void:
 	_check(road.toll_distance > length * 0.4 and road.toll_distance < length * 0.56,
 		"the toll plaza is midway along the route (%.0f of %.0f m)" % [road.toll_distance, length])
 	_check(road.toll_booth_count == 4, "the toll plaza has four booths (%d)" % road.toll_booth_count)
+	_check(road.toll_inner_island_x - 0.375 - 1.15 > 0.4,
+		"the centre toll lane leaves room either side of the truck (%.2f m)" % (road.toll_inner_island_x - 0.375 - 1.15))
 	_check(road.get_node_or_null("TollPlaza/Arm0") != null, "the toll arms were built")
 	_check(road.get_node_or_null("TollPlaza/TollSign") != null, "the toll canopy carries its sign")
 

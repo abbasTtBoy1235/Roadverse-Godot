@@ -78,8 +78,6 @@ func _ready() -> void:
 				positions_finite = false
 		_check(positions_finite, "pedestrian positions are finite")
 
-	if _road != null:
-		_check(float(_road.get("lamp_level")) > 0.5, "street lamps follow the night (level %.2f)" % float(_road.get("lamp_level")))
 	_check(_weather != null, "weather found")
 	_check(_noise != null, "road noise found")
 	_check(_road != null, "road found")
@@ -218,6 +216,10 @@ func _check_cockpit() -> void:
 
 
 func _check_drive() -> void:
+	# The game starts at 07:00 now: lamps must be off in the morning.
+	if _road != null:
+		_check(float(_road.get("lamp_level")) < 0.5, "street lamps are off at the morning start (level %.2f)" % float(_road.get("lamp_level")))
+
 	if _wheels != null:
 		_check(absf(_wheels.spin_angle(0) - _spin_before) > 0.5, "wheels spin while driving")
 
@@ -495,6 +497,7 @@ func _check_model_socket() -> void:
 		return
 
 	_check(socket.has_model, "the GLB was loaded and fitted")
+	_check(socket.glass_panel_count >= 1, "the cab glass was made see-through (%d panels)" % socket.glass_panel_count)
 	_check(not (_truck.get_node("Body") as Node3D).visible, "the placeholder body is hidden")
 	_check(not (_truck.get_node("Cab") as Node3D).visible, "the placeholder cab is hidden")
 

@@ -87,6 +87,8 @@ var gantry_sign_count := 0
 ## Route furniture from the details pass. Test hooks.
 var toll_distance := 0.0
 var toll_booth_count := 0
+## Lateral position of the inner booth islands: sets the centre-lane width.
+var toll_inner_island_x := 0.0
 var billboard_count := 0
 var chevron_count := 0
 var rest_stop_count := 0
@@ -1200,21 +1202,23 @@ func _build_toll_plaza() -> void:
 
 	# Booth islands between the lanes. Round booths, not boxes.
 	var island_mesh := BoxMesh.new()
-	island_mesh.size = Vector3(1.05, 0.24, 7.5)
+	island_mesh.size = Vector3(0.8, 0.24, 7.5)
 
 	var booth_mesh := CylinderMesh.new()
-	booth_mesh.top_radius = 0.6
-	booth_mesh.bottom_radius = 0.66
+	booth_mesh.top_radius = 0.44
+	booth_mesh.bottom_radius = 0.5
 	booth_mesh.height = 2.25
 	booth_mesh.radial_segments = 10
 
 	var booth_roof_mesh := CylinderMesh.new()
-	booth_roof_mesh.top_radius = 0.85
-	booth_roof_mesh.bottom_radius = 0.85
+	booth_roof_mesh.top_radius = 0.68
+	booth_roof_mesh.bottom_radius = 0.68
 	booth_roof_mesh.height = 0.16
 	booth_roof_mesh.radial_segments = 10
 
-	for lateral: float in [-5.05, -1.75, 1.75, 5.05]:
+	toll_inner_island_x = 2.0
+
+	for lateral: float in [-5.6, -2.0, 2.0, 5.6]:
 		var island := MeshInstance3D.new()
 		island.mesh = island_mesh
 		island.material_override = _concrete
@@ -1239,7 +1243,7 @@ func _build_toll_plaza() -> void:
 		prop_spots.append({
 			"position": plaza.transform * Vector3(lateral, 1.4, 0.0),
 			"radius": 0.9,
-			"box": Vector3(0.95, 2.8, 7.0),
+			"box": Vector3(0.75, 2.8, 7.0),
 			"basis": plaza.transform.basis,
 		})
 		toll_booth_count += 1
@@ -1259,7 +1263,7 @@ func _build_toll_plaza() -> void:
 	var arm_mesh := BoxMesh.new()
 	arm_mesh.size = Vector3(0.78, 0.11, 0.11)
 
-	var arm_setup: Array = [[-1.75, -3.3], [1.75, 0.0], [5.05, 3.3]]
+	var arm_setup: Array = [[-2.0, -3.3], [2.0, 0.0], [5.6, 3.3]]
 
 	for i in arm_setup.size():
 		var pivot_x: float = arm_setup[i][0]

@@ -294,7 +294,7 @@ is broadcast to everything that glows — street lamps, lamp glass, the 4,200 ci
 skyline, tower beacons and NPC headlights — so dawn and dusk happen everywhere at once: lamps
 fade out as the sky warms orange at sunrise, and the city lights come back on at dusk.
 
-- Default: starts at **21:00**, one full day takes **15 real minutes** (`day_length_seconds = 900`)
+- Default: starts at **07:00**, one full day takes **15 real minutes** (`day_length_seconds = 900`)
 - Set `enabled = false` on the `TimeOfDay` node for a permanently frozen night
 - The HUD shows the in-game clock next to the gear and RPM
 

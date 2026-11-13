@@ -8,8 +8,9 @@ extends Camera3D
 
 @export var target_path: NodePath
 @export var distance := 9.5
-@export var height := 3.6
-@export var look_height := 1.6
+## High enough to see over the cargo body to the road ahead of the truck.
+@export var height := 4.8
+@export var look_height := 1.7
 @export var smooth := 5.5
 @export var recentre_speed := 1.6
 ## Seconds of no mouse movement before the camera drifts back behind the truck.

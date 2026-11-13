@@ -68,6 +68,9 @@ func _finish() -> void:
 	forward.y = 0.0
 	_check(behind.normalized().dot(forward.normalized()) < -0.5, "the camera stays behind the truck")
 
+	_check(_camera.global_position.y - _truck.global_position.y > 4.2,
+		"the chase camera rides high enough to see the road ahead (%.1f m up)" % (_camera.global_position.y - _truck.global_position.y))
+
 	# Regression (user screenshot, 2026-11-12): orbiting down put the camera under
 	# the road, and at rest it sat inside the trailer's cargo box.
 	_check(_min_camera_y > 0.4, "the camera never goes under the road (min y %.2f)" % _min_camera_y)

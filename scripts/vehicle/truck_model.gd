@@ -38,6 +38,8 @@ var model_height := 0.0
 var model_rear_z := 0.0
 ## Front edge of the fitted mesh: where the lamps belong.
 var model_front_z := 0.0
+## How many glass panels were made transparent. Test hook.
+var glass_panel_count := 0
 
 var _truck: VehicleBody3D
 var _model_root: Node3D
@@ -89,7 +91,41 @@ func apply_model(root: Node3D) -> bool:
 	if adopt_wheels:
 		_adopt_wheels()
 
+	_make_glass_transparent()
 	return true
+
+
+## Exporters ship cab glass as opaque dark plastic, which makes the cockpit
+## camera blind. Any surface whose material smells of glass gets a proper
+## transparent duplicate, tinted and see-through from both sides.
+func _make_glass_transparent() -> void:
+	for node in _descendants(self):
+		var instance := node as MeshInstance3D
+
+		if instance == null or instance.mesh == null:
+			continue
+
+		for surface in instance.mesh.get_surface_count():
+			var material := instance.mesh.surface_get_material(surface) as StandardMaterial3D
+
+			if material == null:
+				continue
+
+			var mat_name := material.resource_name.to_lower()
+
+			if not (mat_name.contains("glass") or mat_name.contains("wind")):
+				continue
+
+			var glass := material.duplicate() as StandardMaterial3D
+			glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+
+			var tint := glass.albedo_color
+			tint.a = 0.18
+			glass.albedo_color = tint
+			glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+			instance.set_surface_override_material(surface, glass)
+			glass_panel_count += 1
 
 
 # ------------------------------------------------------------------- fitting --

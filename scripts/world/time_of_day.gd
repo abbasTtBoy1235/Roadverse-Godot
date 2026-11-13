@@ -4,7 +4,7 @@ extends Node
 ## Set `enabled = false` for a permanently frozen night.
 
 @export var enabled := true
-@export_range(0.0, 24.0, 0.1) var start_hour := 21.0
+@export_range(0.0, 24.0, 0.1) var start_hour := 7.0
 ## Real seconds for a full 24 h cycle. 900 = 15 minutes per in-game day.
 @export var day_length_seconds := 900.0
 

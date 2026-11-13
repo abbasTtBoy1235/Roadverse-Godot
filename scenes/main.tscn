@@ -57,7 +57,7 @@ shadow_enabled = true
 
 [node name="TimeOfDay" type="Node" parent="."]
 script = ExtResource("6_time")
-start_hour = 21.0
+start_hour = 7.0
 day_length_seconds = 900.0
 sun_path = NodePath("../Sun")
 moon_path = NodePath("../Moon")
